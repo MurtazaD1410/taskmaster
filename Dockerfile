@@ -26,4 +26,4 @@ EXPOSE 8000
 
 # The default command to run when the container starts.
 # Replace 'yourprojectname' with the name of your Django project folder (the one with settings.py).
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "yourprojectname.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "core.wsgi:application"]
