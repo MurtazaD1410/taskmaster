@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-832&nus!4*j5$li*%#lp#zct9u7z2m_3umfk#w(uq+6-i#k70m
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["54.90.204.70"]
 
 REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
