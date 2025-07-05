@@ -1,7 +1,5 @@
 # This file orchestrates all your containers.
 
-version: "3.8"
-
 services:
   # The PostgreSQL Database Service
   db:

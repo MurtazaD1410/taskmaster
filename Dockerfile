@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Copy the file that lists your Python libraries.
 # This command will now succeed because you've created the file.
-COPY requirements.txt .
+COPY taskmaster_api/ .
 
 # Install those libraries, plus Gunicorn for running the server.
 RUN pip install --no-cache-dir gunicorn psycopg2-binary
