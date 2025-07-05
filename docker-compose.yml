@@ -23,14 +23,17 @@ services:
 
   # The Nginx Web Server Service (The Public Entrypoint)
   nginx:
-    # CHANGE THIS: Tell Docker to build from the nginx folder
-    build: ./nginx
+    # --- THIS IS THE FIX ---
+    build:
+      context: . # Use the current directory (project root) as the build context.
+      dockerfile: nginx/Dockerfile # Specify the path to the Dockerfile to use.
+    # ---------------------
     container_name: taskmaster_nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      # We KEEP these other volumes!
+      # The volumes remain the same.
       - static_volume:/usr/share/nginx/html/static
       - ./certs:/etc/nginx/ssl
     depends_on:

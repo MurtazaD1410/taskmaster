@@ -1,13 +1,10 @@
-# nginx/Dockerfile
-
-# Start from the official lightweight Nginx image
 FROM nginx:1.23-alpine
 
-# Remove the default Nginx configuration
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy our custom production configuration into the image
-COPY prod.conf /etc/nginx/conf.d/default.conf
+# This path is now relative to the project root, which is the context.
+COPY nginx/prod.conf /etc/nginx/conf.d/default.conf
 
-# Copy our built Nuxt frontend files into the image's web root
-COPY ../frontend_static /usr/share/nginx/html
+# --- THIS IS THE FIX ---
+# This path is also relative to the project root.
+COPY frontend_static /usr/share/nginx/html
