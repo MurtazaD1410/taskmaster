@@ -5,8 +5,10 @@ import { useAuthStore } from "~/stores/auth"; // Make sure to import the store
 export default defineNuxtPlugin(() => {
   // 🚨 DO NOT get the authStore here.
 
+  const config = useRuntimeConfig();
+
   const apiFetcher = ofetch.create({
-    baseURL: "http://127.0.0.1:8000/api/",
+    baseURL: config.public.apiBase as string,
 
     onRequest({ options }) {
       // ✅ Get a fresh instance of the store on EACH request.

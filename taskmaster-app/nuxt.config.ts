@@ -9,5 +9,13 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
   },
+  runtimeConfig: {
+    public: {
+      // This variable will hold our API URL.
+      // The default value points to your local Django server.
+      apiBase: "http://127.0.0.1:8000/api/",
+    },
+  },
+
   modules: ["@nuxt/eslint", "@nuxt/icon", "@nuxt/ui", "@pinia/nuxt"],
 });
