@@ -6,7 +6,10 @@ services:
     image: postgres:15-alpine
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-    env_file: .env.db
+    environment:
+      - POSTGRES_USER=taskmaster_user
+      - POSTGRES_PASSWORD=admin@123
+      - POSTGRES_DB=taskmaster_db
     container_name: taskmaster_db
 
   # The Django Backend Service
