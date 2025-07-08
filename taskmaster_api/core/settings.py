@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-832&nus!4*j5$li*%#lp#zct9u7z2m_3umfk#w(uq+6-i#k70m
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["54.90.204.70"]
+ALLOWED_HOSTS = ["54.90.204.70", "localhost"]
 
 REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
@@ -41,6 +41,7 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "TaskMaster API",
     "DESCRIPTION": "A simple API to manage users and their tasks.",
     "VERSION": "1.0.0",
+    "SCHEMA_PATH_PREFIX": "/api",
 }
 
 SITE_ID = 1
@@ -88,6 +89,7 @@ INSTALLED_APPS = [
     "users.apps.UsersConfig",
     "tasks.apps.TasksConfig",
     "projects.apps.ProjectsConfig",
+    "invitations.apps.InvitationsConfig",
 ]
 
 MIDDLEWARE = [
@@ -166,7 +168,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
-
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 STATIC_URL = "static/"
 STATIC_ROOT = "/app/staticfiles"
 
@@ -179,6 +182,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Your Nuxt frontend
     "http://127.0.0.1:3000",
     "https://54.90.204.70",
+    "https://5d74ks5s-3000.euw.devtunnels.ms",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+
+AUTH_USER_MODEL = "users.CustomUser"

@@ -66,8 +66,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       },
     });
     toast.add({ title: "Registration Successful!", color: "success" });
+    console.log(response);
 
-    authStore.setLoginData({
+    await authStore.setLoginData({
       user: response.user,
       tokens: {
         access: response.tokens.access,
@@ -124,24 +125,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             icon="i-heroicons-envelope"
           />
         </UFormField>
-        <!-- <UFormField label="First Name" name="first_name" required>
-          <UInput
-            v-model="state.first_name"
-            class="w-full"
-            size="lg"
-            placeholder="Enter your first name"
-            icon="i-heroicons-user"
-          />
-        </UFormField>
-        <UFormField label="Last Name" name="last_name" required>
-          <UInput
-            v-model="state.last_name"
-            class="w-full"
-            size="lg"
-            placeholder="Enter your last name"
-            icon="i-heroicons-user"
-          />
-        </UFormField> -->
+
         <UFormField label="Password" name="password" required>
           <div class="relative w-full">
             <UInput
@@ -200,6 +184,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </UFormField>
 
         <UButton type="submit" block size="lg" class="mt-2">Register</UButton>
+        <p class="text-sm text-muted text-center">
+          Already have an account?
+          <router-link to="/login" class="text-primary-500">Login</router-link>
+        </p>
       </UForm>
     </UCard>
   </UContainer>

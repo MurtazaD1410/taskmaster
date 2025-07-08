@@ -1,25 +1,6 @@
 <script setup lang="ts">
-import { z } from "zod";
-import { UFormField, UInput, USelect } from "#components";
-import type { Project, Task } from "~/types/types";
-import type { FormSubmitEvent } from "@nuxt/ui";
-import moment from "moment";
-
-const schema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  project: z.number().optional(),
-  status: z.enum(["TODO", "IN_PROGRESS", "DONE"]),
-});
-
-type Schema = z.infer<typeof schema>;
-
-const state = reactive<Partial<Schema>>({
-  title: undefined,
-  description: undefined,
-  project: undefined,
-  status: "TODO",
-});
+import type { Project, Task, TaskPaginatedResponse } from "~/types/types";
+import { formatDeadline, isOverdue } from "~/helpers/utils";
 
 definePageMeta({
   middleware: "auth",
@@ -27,33 +8,24 @@ definePageMeta({
 
 const { $api } = useNuxtApp();
 
-const toast = useToast();
-const statusOptions = ref(["TODO", "IN_PROGRESS", "DONE"]);
+const priorityOptions = ref([
+  { label: "Low", value: "L" },
+  { label: "Medium", value: "M" },
+  { label: "High", value: "H" },
+]);
 
-const currentTab = ref<"all" | "todo" | "in_progress" | "done">("all");
-// --- Modal State ---
+const currentTab = ref<"ALL" | "TODO" | "IN_PROGRESS" | "DONE">("ALL");
+const page = ref(1);
 const isModalOpen = ref(false);
 const editingTask = ref<Task | null>(null); // null when creating, holds a task when editing
 
 function openCreateModal() {
   editingTask.value = null; // Clear any previous editing state
-  state.title = "";
-  state.description = "";
-  state.project = undefined;
-  state.status =
-    currentTab.value !== "all"
-      ? (currentTab.value.toUpperCase() as "TODO" | "IN_PROGRESS" | "DONE")
-      : "TODO";
   isModalOpen.value = true;
 }
 
 function openEditModal(task: Task) {
-  editingTask.value = task; // Clear any previous editing state
-  // Reset form state for a new task
-  state.title = task.title;
-  state.description = task.description || "";
-  state.project = task.project_details?.id || undefined;
-  state.status = task.status;
+  editingTask.value = task; // Set the task to be edited
   isModalOpen.value = true;
 }
 
@@ -71,78 +43,31 @@ const {
   }
 );
 
+watch(currentTab, () => {
+  page.value = 1; // reset page on tab change
+});
+
 const {
-  data: tasks,
+  data: tasksPaginatedResponse,
   pending,
   error,
   refresh,
-} = useAsyncData<Array<Task>>(
-  () => `tasks-${currentTab.value}`,
+} = useAsyncData<TaskPaginatedResponse>(
+  () => `tasks-${currentTab.value}-${page.value}`,
   () => {
-    let url = "/tasks";
-    if (currentTab.value !== "all")
-      url = `/tasks/?status=${currentTab.value.toUpperCase()}`;
+    let url = `/tasks/?page=${page.value}`;
+    if (currentTab.value !== "ALL")
+      url = `/tasks/?status=${currentTab.value}&page=${page.value}`;
     return $api(url);
   },
   {
-    watch: [currentTab],
+    watch: [currentTab, page],
     server: false,
   }
 );
 
-async function saveTask(event: FormSubmitEvent<Schema>) {
-  try {
-    if (editingTask.value) {
-      await $api(`tasks/${editingTask.value.id}/`, {
-        method: "PUT",
-        body: event.data,
-      });
-      toast.add({ title: "Task updated Successfully!", color: "success" });
-    } else {
-      await $api("tasks/", {
-        method: "POST",
-        body: event.data,
-      });
-      toast.add({ title: "Task created Successfully!", color: "success" });
-    }
-    isModalOpen.value = false;
-    await refresh();
-  } catch (error) {
-    // @ts-expect-error error is type unknown
-    const errorData = error?.response?._data;
-    const errorMessage = errorData
-      ? Object.values(errorData).flat().join(" ")
-      : "An unknown error occurred.";
-    toast.add({
-      title: "An error occurred",
-      description: errorMessage,
-      color: "error",
-    });
-  }
-}
-
-async function deleteTask(taskId: number) {
-  if (!confirm("Are you sure you want to delete this task?")) return;
-
-  try {
-    await $api(`tasks/${taskId}/`, {
-      method: "DELETE",
-    });
-    isModalOpen.value = false;
-    await refresh();
-    toast.add({ title: "Task deleted Successfully!", color: "success" });
-  } catch (error) {
-    // @ts-expect-error error is type unknown
-    const errorData = error?.response?._data;
-    const errorMessage = errorData
-      ? Object.values(errorData).flat().join(" ")
-      : "An unknown error occurred.";
-    toast.add({
-      title: "Could not delete Task",
-      description: errorMessage,
-      color: "error",
-    });
-  }
+function onTaskSaved() {
+  refresh();
 }
 </script>
 
@@ -150,40 +75,23 @@ async function deleteTask(taskId: number) {
   <UContainer class="py-12">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-4xl font-bold">My Tasks</h1>
-      <UButtonGroup size="xl">
-        <UButton
-          :color="currentTab === 'all' ? 'success' : 'neutral'"
-          variant="subtle"
-          label="All"
-          @click="currentTab = 'all'"
-        />
-        <UButton
-          :color="currentTab === 'todo' ? 'success' : 'neutral'"
-          variant="subtle"
-          label="Todo"
-          @click="currentTab = 'todo'"
-        />
-        <UButton
-          :color="currentTab === 'in_progress' ? 'success' : 'neutral'"
-          variant="subtle"
-          label="In Progress"
-          @click="currentTab = 'in_progress'"
-        />
-        <UButton
-          :color="currentTab === 'done' ? 'success' : 'neutral'"
-          variant="subtle"
-          label="Done"
-          @click="currentTab = 'done'"
-        />
-      </UButtonGroup>
+
+      <TaskFilterButton v-model:current-tab="currentTab" />
 
       <UButton
         label="Add Task"
         icon="i-heroicons-plus"
-        size="lg"
+        size="md"
+        :ui="{
+          leadingIcon: 'text-lg',
+        }"
         @click="openCreateModal"
       />
     </div>
+    <TaskFilterButton
+      v-model:current-tab="currentTab"
+      class="block md:hidden mb-8"
+    />
 
     <div v-if="pending" class="text-center py-16">
       <UIcon name="i-heroicons-arrow-path" class="text-4xl animate-spin" />
@@ -192,107 +100,140 @@ async function deleteTask(taskId: number) {
       Failed to load tasks.
     </div>
     <div
-      v-else-if="!tasks || tasks.length === 0"
+      v-else-if="tasksPaginatedResponse?.count === 0"
       class="text-center py-16 text-gray-500"
     >
       No tasks yet.
     </div>
-    <div v-else class="flex flex-col-reverse">
+    <div v-else class="flex flex-col">
       <UCard
-        v-for="task in tasks"
+        v-for="task in tasksPaginatedResponse?.results"
         :key="task.id"
         class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors mb-3"
         @click="openEditModal(task)"
       >
         <div class="flex justify-between items-center">
-          <div class="flex flex-col gap-2">
-            <span class="font-semibold text-lg">{{ task.title }}</span>
-            <span class="font-light text-sm">{{
-              // moment(task.created_at).format("DD MMM YYYY")
-              task.description
-            }}</span>
+          <div class="flex flex-col gap-2 flex-1">
+            <!-- Main task info -->
+            <div class="flex flex-col gap-1">
+              <span class="font-semibold text-lg">{{ task.title }}</span>
+              <span class="font-light text-sm text-gray-600 dark:text-gray-400">
+                {{ task.description }}
+              </span>
+            </div>
+
+            <!-- Optional fields row -->
+            <div class="flex flex-wrap gap-2 items-center text-xs">
+              <!-- Project -->
+              <div v-if="task.project_details" class="flex items-center gap-1">
+                <UIcon
+                  name="i-heroicons-folder"
+                  class="w-3 h-3 text-primary-500"
+                />
+                <span
+                  class="text-primary-500 dark:text-primary-400 font-medium"
+                >
+                  {{ task.project_details?.title }}
+                </span>
+              </div>
+
+              <!-- Priority -->
+              <UBadge
+                v-if="task.priority"
+                :color="
+                  task.priority === 'H'
+                    ? 'error'
+                    : task.priority === 'M'
+                    ? 'warning'
+                    : 'neutral'
+                "
+                variant="soft"
+                size="sm"
+              >
+                {{
+                  priorityOptions.find((p) => p.value === task.priority)?.label
+                }}
+              </UBadge>
+
+              <!-- Deadline -->
+              <div v-if="task.deadline" class="flex items-center gap-1">
+                <UIcon
+                  name="i-heroicons-calendar-days"
+                  class="w-3 h-3"
+                  :class="
+                    isOverdue(task.deadline) ? 'text-red-500' : 'text-gray-500'
+                  "
+                />
+                <span
+                  class="text-xs"
+                  :class="
+                    isOverdue(task.deadline)
+                      ? 'text-red-600 dark:text-red-400 font-medium'
+                      : 'text-gray-500 dark:text-gray-400'
+                  "
+                >
+                  {{ formatDeadline(task.deadline) }}
+                </span>
+              </div>
+            </div>
           </div>
-          <UBadge
-            :leading-icon="
-              task.status === 'TODO'
-                ? 'i-heroicons-exclamation-circle'
-                : task.status === 'IN_PROGRESS'
-                ? 'i-heroicons-arrow-right-circle'
-                : 'i-heroicons-check-circle'
-            "
-            size="xl"
-            class="capitalize"
-            :color="
-              task.status == 'TODO'
-                ? 'error'
-                : task.status === 'IN_PROGRESS'
-                ? 'warning'
-                : 'success'
-            "
-            variant="outline"
+
+          <!-- Status badge -->
+          <div
+            class="ml-4 flex-shrink-0 flex flex-col gap-3 justify-center items-end"
           >
-            {{ task.status.replace("_", " ").toLowerCase() }}
-          </UBadge>
+            <UBadge
+              :leading-icon="
+                task.status === 'TODO'
+                  ? 'i-heroicons-exclamation-circle'
+                  : task.status === 'IN_PROGRESS'
+                  ? 'i-heroicons-arrow-right-circle'
+                  : 'i-heroicons-check-circle'
+              "
+              size="xl"
+              class="capitalize"
+              :color="
+                task.status == 'TODO'
+                  ? 'error'
+                  : task.status === 'IN_PROGRESS'
+                  ? 'warning'
+                  : 'success'
+              "
+              variant="outline"
+            >
+              {{ task.status.replace("_", " ").toLowerCase() }}
+            </UBadge>
+            <p class="text-muted text-sm">{{ task.author?.username }}</p>
+          </div>
         </div>
       </UCard>
     </div>
 
-    <!-- The Modal for Creating and Editing -->
-
-    <UModal
-      v-model:open="isModalOpen"
-      :title="editingTask ? 'Edit Task' : 'Add New Task'"
-      :ui="{ footer: 'justify-end' }"
-    >
-      <template #body>
-        <UForm
-          :schema="schema"
-          :state="state"
-          class="space-y-4"
-          @submit="saveTask"
-        >
-          <UFormField label="Title" name="title" required>
-            <UInput v-model="state.title" class="w-full" />
-          </UFormField>
-          <UFormField label="Description" name="description">
-            <UTextarea v-model="state.description" class="w-full" />
-          </UFormField>
-          <UFormField label="Project" name="project">
-            <USelect
-              v-model="state.project"
-              :items="projects.map((project: Project) => ({
-                  label: project.title,
-                  value: project.id,
-                }))"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Status" name="status" required>
-            <USelect
-              v-model="state.status"
-              :items="statusOptions"
-              class="w-full"
-            />
-          </UFormField>
-          <div class="flex justify-end gap-3 pt-4">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              icon="i-heroicons-x-mark"
-              @click="isModalOpen = false"
-            />
-            <UButton
-              v-if="editingTask"
-              label="Delete"
-              color="error"
-              icon="i-heroicons-trash"
-              @click="() => deleteTask(editingTask.id)"
-            />
-            <UButton type="submit" label="Save" icon="i-heroicons-check" />
-          </div>
-        </UForm>
-      </template>
-    </UModal>
+    <TaskModal
+      v-model:is-modal-open="isModalOpen"
+      :projects="projects"
+      :project-id="null"
+      :editing-task="editingTask"
+      :current-tab="currentTab"
+      @saved="onTaskSaved"
+    />
+    <UPagination
+      v-model:page="page"
+      class="flex justify-end"
+      active-color="primary"
+      active-variant="subtle"
+      :total="tasksPaginatedResponse?.count"
+      size="md"
+      :items-per-page="6"
+      show-edges
+      :ui="{
+        ellipsis: 'w-8 h-8 flex items-center justify-center',
+        last: 'w-8 h-8 flex items-center justify-center',
+        first: 'w-8 h-8 flex items-center justify-center',
+        prev: 'w-8 h-8 flex items-center justify-center',
+        next: 'w-8 h-8 flex items-center justify-center',
+      }"
+      :sibling-count="1"
+    />
   </UContainer>
 </template>

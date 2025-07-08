@@ -2,7 +2,7 @@
 
 <template>
   <NuxtLayout>
-    <UApp>
+    <UApp :toaster="{ expand: false, duration: 2000 }">
       <NuxtRouteAnnouncer />
       <NuxtPage />
     </UApp>

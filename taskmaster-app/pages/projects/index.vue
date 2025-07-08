@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { z } from "zod";
-import { UFormField, UInput, USelect } from "#components";
-import type { Task } from "~/types/types";
+import { UFormField, UInput } from "#components";
+import type { Project, Task, TaskPaginatedResponse } from "~/types/types";
 import type { FormSubmitEvent } from "@nuxt/ui";
-import moment from "moment";
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -20,17 +19,22 @@ const state = reactive<Partial<Schema>>({
 definePageMeta({
   middleware: "auth",
 });
-
+const authStore = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 const { $api } = useNuxtApp();
 
 const toast = useToast();
 // --- Modal State ---
 const isModalOpen = ref(false);
+watchEffect(() => {
+  isModalOpen.value = route.query.create === "true";
+});
 
 function openCreateModal() {
   state.title = "";
   state.description = "";
-  isModalOpen.value = true;
+  router.push({ query: { ...route.query, create: "true" } });
 }
 
 const {
@@ -38,7 +42,7 @@ const {
   pending,
   error,
   refresh,
-} = useAsyncData<Array<Task>>(
+} = useAsyncData<Array<Project>>(
   () => `projects`,
   () => $api("/projects"),
 
@@ -48,11 +52,11 @@ const {
 );
 
 const {
-  data: tasks,
+  data: tasksPaginatedResponse,
   pending: tasksPending,
   error: tasksError,
   refresh: tasksRefresh,
-} = useAsyncData<Array<Task>>(
+} = useAsyncData<TaskPaginatedResponse>(
   () => `tasks`,
   () => {
     return $api("/tasks");
@@ -70,7 +74,8 @@ async function saveProject(event: FormSubmitEvent<Schema>) {
     });
     toast.add({ title: "Project created Successfully!", color: "success" });
 
-    isModalOpen.value = false;
+    const { create, ...rest } = route.query;
+    router.replace({ query: { ...rest } });
     await refresh();
   } catch (error) {
     // @ts-expect-error error is type unknown
@@ -95,7 +100,10 @@ async function saveProject(event: FormSubmitEvent<Schema>) {
       <UButton
         label="Add Project"
         icon="i-heroicons-plus"
-        size="lg"
+        size="md"
+        :ui="{
+          leadingIcon: 'text-lg',
+        }"
         @click="openCreateModal"
       />
     </div>
@@ -121,7 +129,23 @@ async function saveProject(event: FormSubmitEvent<Schema>) {
       >
         <div class="flex justify-between items-center">
           <div class="flex flex-col gap-2">
-            <span class="font-semibold text-lg">{{ project.title }}</span>
+            <div class="flex items-center gap-4">
+              <span class="font-semibold text-lg">{{ project.title }}</span>
+              <div
+                v-if="project.owner.id !== authStore.user?.id"
+                class="flex items-center gap-1"
+              >
+                <UIcon
+                  name="i-heroicons-folder"
+                  class="w-3 h-3 text-primary-500"
+                />
+                <span
+                  class="text-primary-500 dark:text-primary-400 font-medium"
+                >
+                  {{ project?.owner.username }}
+                </span>
+              </div>
+            </div>
             <span class="font-light text-sm text-muted">{{
               // moment(task.created_at).format("DD MMM YYYY")
               project.description
@@ -132,13 +156,7 @@ async function saveProject(event: FormSubmitEvent<Schema>) {
             size="lg"
             color="neutral"
             variant="outline"
-            >{{
-              (tasks &&
-                tasks.filter(
-                  (task: Task) => task.project_details?.id === project.id
-                ).length) ||
-              0
-            }}</UBadge
+            >{{ project.task_count }}</UBadge
           >
         </div>
       </UCard>
@@ -150,6 +168,7 @@ async function saveProject(event: FormSubmitEvent<Schema>) {
       v-model:open="isModalOpen"
       title="Add New Project"
       :ui="{ footer: 'justify-end' }"
+      :dismissible="false"
     >
       <template #body>
         <UForm
@@ -171,7 +190,12 @@ async function saveProject(event: FormSubmitEvent<Schema>) {
               color="neutral"
               variant="outline"
               icon="i-heroicons-x-mark"
-              @click="isModalOpen = false"
+              @click="
+                () => {
+                  const { create, ...rest } = route.query;
+                  router.replace({ query: { ...rest } }); // Use replace to avoid history spam
+                }
+              "
             />
             <!-- <UButton
               v-if="editingTask"

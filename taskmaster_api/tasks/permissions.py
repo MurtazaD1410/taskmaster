@@ -10,3 +10,12 @@ class IsOwner(permissions.BasePermission):
         # if request.method in permissions.SAFE_METHODS:
         # return True
         return obj.author == request.user
+
+
+class IsProjectMemberForTask(permissions.BasePermission):
+    """
+    Custom permission to only allow members of a project to access its tasks.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        return obj.project.members.filter(id=request.user.id).exists()

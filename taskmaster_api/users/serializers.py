@@ -1,15 +1,28 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model, authenticate
+
+
+User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email"]
+        fields = ["id", "username", "email", "avatar"]
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "first_name", "last_name", "email", "bio", "avatar"]
+
+        read_only_fields = ["id", "username", "email"]
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -52,6 +65,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+    # def to_representation(self, instance):
+    #     # Return the same format as login
+    #     refresh = RefreshToken.for_user(instance)
+    #     return {
+    #         "user": {
+    #             "id": instance.id,
+    #             "username": instance.username,
+    #             "email": instance.email,
+    #         },
+    #         "tokens": {
+    #             "refresh": str(refresh),
+    #             "access": str(refresh.access_token),
+    #         },
+    #     }
+
 
 class EmailLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -60,8 +88,6 @@ class EmailLoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs["email"]
         password = attrs["password"]
-
-        from django.contrib.auth.models import User
 
         try:
             # We must get the user by email to find their actual username
@@ -80,3 +106,12 @@ class EmailLoginSerializer(serializers.Serializer):
 
         # 'user' is now the fully authenticated user object.
         return user
+
+
+class CheckEmailSerializer(serializers.Serializer):
+    """
+    Serializer for the check-email endpoint.
+    Defines the expected input.
+    """
+
+    email = serializers.EmailField(required=True)

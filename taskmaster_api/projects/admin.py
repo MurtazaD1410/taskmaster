@@ -1,15 +1,17 @@
 from django.contrib import admin
+from .models import Project, ProjectMembership
 
 
 # Register your models here.
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("title", "author", "created_at", "updated_at")
+    list_display = ("id", "title", "owner", "created_at", "updated_at")
     search_fields = ("title", "description")
-    list_filter = ("created_at", "updated_at", "author")
+    list_filter = ("created_at", "updated_at", "owner")
 
 
-# Register your models here.
-from .models import Project
+class ProjectMembershipAdmin(admin.ModelAdmin):
+    list_display = ("project", "user", "role", "joined_at")
 
 
 admin.site.register(Project, ProjectAdmin)
+admin.site.register(ProjectMembership, ProjectMembershipAdmin)

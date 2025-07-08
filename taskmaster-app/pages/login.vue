@@ -43,7 +43,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     });
     toast.add({ title: "Login Successful!", color: "success" });
     console.log(response);
-    authStore.setLoginData({
+
+    await authStore.setLoginData({
       user: response.user,
       tokens: {
         access: response.tokens.access,
@@ -123,6 +124,12 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </UFormField>
 
         <UButton type="submit" block class="mt-2" size="lg">Login</UButton>
+        <p class="text-sm text-muted text-center">
+          Don't have an account?
+          <router-link to="/register" class="text-primary-500"
+            >Register</router-link
+          >
+        </p>
       </UForm>
     </UCard>
   </UContainer>

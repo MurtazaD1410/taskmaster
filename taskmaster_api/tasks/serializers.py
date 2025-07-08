@@ -26,16 +26,27 @@ class TaskSerializer(serializers.ModelSerializer):
             "status",
             "project",
             "project_details",
+            "priority",
+            "deadline",
             "author",
             "created_at",
         ]
 
     def validate_project(self, project):
         """
-        Check if project is owned by the current user
+        Check that the user is a member of the project they are
+        assigning the task to.
         """
-        if project and project.author != self.context["request"].user:
+        # Get the current user from the context that DRF provides.
+        user = self.context["request"].user
+
+        # The new, correct check: is the user in the project's members list?
+        # The .exists() check is an efficient way to do this.
+        if not project.members.filter(id=user.id).exists():
+            # If they are not a member, raise the validation error with a new message.
             raise serializers.ValidationError(
-                "You can only assign tasks to your own projects."
+                "You can only assign tasks to projects you are a member of."
             )
+
+        # If the check passes, always return the project value. This is required.
         return project
