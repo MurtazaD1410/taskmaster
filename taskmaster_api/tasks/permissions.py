@@ -18,4 +18,15 @@ class IsProjectMemberForTask(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        return obj.project.members.filter(id=request.user.id).exists()
+        # return obj.project.members.filter(id=request.user.id).exists()
+        task = obj
+
+        # --- THIS IS THE NEW, ROBUST LOGIC ---
+        if task.project:
+            # Case 1: The task is part of a project.
+            # Check if the user is a member of that project.
+            return task.project.members.filter(id=request.user.id).exists()
+        else:
+            # Case 2: The task is a personal task (no project).
+            # Check if the user is the author of the task.
+            return task.author == request.user

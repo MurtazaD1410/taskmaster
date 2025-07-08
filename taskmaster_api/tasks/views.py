@@ -8,6 +8,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework.response import Response
 from .pagination import TaskPagination
+from rest_framework.request import Request
 
 
 from typing import cast
@@ -26,8 +27,9 @@ class TaskViewSet(viewsets.ModelViewSet):
     # allow only logged in users
     permission_classes = [permissions.IsAuthenticated, IsProjectMemberForTask]
 
-    filterset_fields = ["status", "project"]
+    filterset_fields = ["status", "project", "author"]
     pagination_class = TaskPagination
+    request: Request
 
     @extend_schema(
         parameters=[
@@ -66,17 +68,9 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         user = cast(CustomUser, self.request.user)
 
-        # Condition 1: Tasks in projects the user is a member of.
-        # This is your existing logic.
         tasks_in_my_projects = Q(project__members=user)
-
-        # Condition 2: "Personal" tasks created by the user that have no project.
-        # `project__isnull=True` checks for tasks where the project foreign key is NULL.
         my_personal_tasks = Q(author=user, project__isnull=True)
 
-        # Combine the two conditions with an OR operator (|).
-        # The .distinct() is important to prevent duplicate tasks from appearing
-        # if a user is the author of a task in a project they are also a member of.
         return Task.objects.filter(tasks_in_my_projects | my_personal_tasks).distinct()
 
     def perform_create(self, serializer):

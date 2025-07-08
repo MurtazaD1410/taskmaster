@@ -148,7 +148,7 @@ const {
   error: tasksError,
   refresh: tasksRefresh,
 } = useAsyncData<TaskPaginatedResponse>(
-  () => `tasks-${currentTab.value}-${page.value}`,
+  () => `tasks-${currentTab.value}-${page.value}-${route.params.id}`,
   () => {
     let url = `/tasks/?project=${route.params.id}&page=${page.value}`;
     if (currentTab.value !== "ALL")
@@ -671,6 +671,7 @@ const dropdownItems = computed(() =>
     <TaskModal
       v-model:is-modal-open="isModalOpen"
       :projects="null"
+      :status-create="null"
       :editing-task="editingTask"
       :current-tab="currentTab"
       :project-id="route.params.id as string"

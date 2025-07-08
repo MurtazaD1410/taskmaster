@@ -4,8 +4,8 @@ import type { FormSubmitEvent } from "@nuxt/ui";
 import { taskSchema } from "~/schemas/taskSchema";
 import type { TaskSchema } from "~/schemas/taskSchema";
 import type { Project, Task } from "~/types/types";
-import { de } from "@nuxt/ui/runtime/locale/index.js";
 
+const formRef = ref();
 const route = useRoute();
 const router = useRouter();
 const { saveTask, deleteTask } = useTaskService();
@@ -26,6 +26,7 @@ const props = defineProps<{
   editingTask: Task | null;
   projects: Project[] | null;
   projectId: string | null;
+
   currentTab: "ALL" | "TODO" | "IN_PROGRESS" | "DONE";
 }>();
 
@@ -48,7 +49,6 @@ const getDefaultState = (): Partial<TaskSchema> => ({
 
 const state = reactive<Partial<TaskSchema>>(getDefaultState());
 
-console.log(props.projectId);
 watch(
   () => props.isModalOpen,
   (isOpen) => {
@@ -102,6 +102,7 @@ async function handleDelete(taskId: number) {
   >
     <template #body>
       <UForm
+        ref="formRef"
         :schema="taskSchema"
         :state="state"
         class="space-y-4"
@@ -165,25 +166,34 @@ async function handleDelete(taskId: number) {
             class="w-full bg-transparent"
           />
         </UFormField>
-
-        <div class="flex justify-end gap-3 pt-4">
-          <UButton
-            label="Cancel"
-            color="neutral"
-            variant="outline"
-            icon="i-heroicons-x-mark"
-            @click="emit('update:isModalOpen', false)"
-          />
-          <UButton
-            v-if="editingTask"
-            label="Delete"
-            color="error"
-            icon="i-heroicons-trash"
-            @click="() => handleDelete(editingTask!.id)"
-          />
-          <UButton type="submit" label="Save" icon="i-heroicons-check" />
-        </div>
       </UForm>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-3 pt-2">
+        <UButton
+          label="Cancel"
+          color="neutral"
+          variant="outline"
+          icon="i-heroicons-x-mark"
+          @click="
+            () => {
+              emit('update:isModalOpen', false);
+            }
+          "
+        />
+        <UButton
+          v-if="editingTask"
+          label="Delete"
+          color="error"
+          icon="i-heroicons-trash"
+          @click="() => handleDelete(editingTask!.id)"
+        />
+        <UButton
+          label="Save"
+          icon="i-heroicons-check"
+          @click="() => formRef?.submit()"
+        />
+      </div>
     </template>
   </UModal>
 </template>
