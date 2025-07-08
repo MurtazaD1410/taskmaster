@@ -197,13 +197,6 @@ async function saveProject(event: FormSubmitEvent<Schema>) {
                 }
               "
             />
-            <!-- <UButton
-              v-if="editingTask"
-              label="Delete"
-              color="error"
-              icon="i-heroicons-trash"
-              @click="() => deleteTask(editingTask.id)"
-            /> -->
             <UButton type="submit" label="Save" icon="i-heroicons-check" />
           </div>
         </UForm>

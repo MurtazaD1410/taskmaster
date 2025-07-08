@@ -48,22 +48,6 @@ const getDefaultState = (): Partial<TaskSchema> => ({
 
 const state = reactive<Partial<TaskSchema>>(getDefaultState());
 
-// watch(
-//   () => props.editingTask,
-//   (task) => {
-//     if (task) {
-//       state.title = task.title;
-//       state.description = task.description || "";
-//       state.project = task.project_details?.id;
-//       state.status = task.status;
-//       state.priority = task.priority || undefined;
-//       state.deadline = task.deadline || undefined;
-//     } else {
-//       Object.assign(state, getDefaultState());
-//     }
-//   },
-//   { immediate: true }
-// );
 console.log(props.projectId);
 watch(
   () => props.isModalOpen,
