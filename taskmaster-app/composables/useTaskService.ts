@@ -1,5 +1,6 @@
 import type { FormSubmitEvent } from "@nuxt/ui";
 import type { TaskSchema } from "~/schemas/taskSchema";
+import type { Task } from "~/types/types";
 
 export const useTaskService = () => {
   const toast = useToast();
@@ -61,10 +62,7 @@ export const useTaskService = () => {
     }
   }
 
-  async function changeTaskStatus(
-    taskId: number,
-    status: "TODO" | "IN_PROGRESS" | "DONE"
-  ) {
+  async function changeTaskStatus(taskId: number, status: Task["status"]) {
     try {
       await $api(`tasks/${taskId}/`, {
         method: "PATCH",

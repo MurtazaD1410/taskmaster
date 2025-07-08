@@ -15,6 +15,7 @@ class Task(models.Model):
 
     class Status(models.TextChoices):
         TODO = "TODO", "To Do"
+        BACKLOG = "BACKLOG", "Backlog"
         IN_PROGRESS = "IN_PROGRESS", "In Progress"
         DONE = "DONE", "Done"
 

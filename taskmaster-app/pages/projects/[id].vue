@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { UFormField, UInput, USelect } from "#components";
 import type { Project, Task, TaskPaginatedResponse } from "~/types/types";
-import type { FormSubmitEvent } from "@nuxt/ui";
+import type { FormSubmitEvent, TabsItem } from "@nuxt/ui";
 
 import { useRoute } from "#app";
 import { formatDeadline, isOverdue } from "~/helpers/utils";
@@ -14,12 +14,6 @@ const route = useRoute();
 const { user } = useAuthStore();
 const router = useRouter();
 const toast = useToast();
-
-const priorityOptions = ref([
-  { label: "Low", value: "L" },
-  { label: "Medium", value: "M" },
-  { label: "High", value: "H" },
-]);
 
 const inviteState = reactive({
   email: "",
@@ -356,6 +350,19 @@ const dropdownItems = computed(() =>
     };
   })
 );
+
+const tabItems = [
+  {
+    label: "List",
+    icon: "i-heroicons-list-bullet",
+    slot: "list" as const,
+  },
+  {
+    label: "Kanban",
+    icon: "i-heroicons-view-columns",
+    slot: "kanban" as const,
+  },
+] satisfies TabsItem[];
 </script>
 
 <template>
@@ -477,312 +484,131 @@ const dropdownItems = computed(() =>
           </UDropdownMenu>
         </div>
       </div>
-
-      <TaskFilterButton v-model:current-tab="currentTab" class="mb-8" />
-
-      <div v-if="pending" class="text-center py-16">
-        <UIcon name="i-heroicons-arrow-path" class="text-4xl animate-spin" />
-      </div>
-      <div v-else-if="error" class="text-center py-16 text-red-500">
-        Failed to load tasks.
-      </div>
-      <div
-        v-else-if="tasksPaginatedResponse?.count === 0"
-        class="text-center py-16 text-gray-500"
+      <UTabs
+        :items="tabItems"
+        variant="link"
+        class="gap-4 w-full"
+        size="xl"
+        :ui="{ trigger: 'grow' }"
       >
-        No tasks yet.
-      </div>
-      <div v-else class="flex flex-col gap-4">
-        <div class="flex flex-col">
-          <UCard
-            v-for="task in tasksPaginatedResponse?.results"
-            :key="task.id"
-            class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors mb-3"
-            @click="openTaskEditModal(task)"
+        <template #list="{}">
+          <TaskList
+            v-model:current-tab="currentTab"
+            v-model:page="page"
+            :project-page="true"
+            :tasks-paginated-response="tasksPaginatedResponse"
+            :pending="pending"
+            :error="error"
+            @open-edit-modal="openTaskEditModal"
+          />
+        </template>
+
+        <template #kanban="{}">
+          <KanbanView
+            :projects="null"
+            :project-page="true"
+            :project-id="project?.id"
+          />
+        </template>
+      </UTabs>
+
+      <TaskModal
+        v-model:is-modal-open="isModalOpen"
+        :projects="null"
+        :status-create="null"
+        :editing-task="editingTask"
+        :current-tab="currentTab"
+        :project-id="route.params.id as string"
+        @saved="onTaskSaved"
+      />
+
+      <UModal
+        v-model:open="isProjectModalOpen"
+        :dismissible="false"
+        title="Edit Project"
+        :ui="{ footer: 'justify-end' }"
+      >
+        <template #body>
+          <UForm
+            :schema="projectSchema"
+            :state="projectState"
+            class="space-y-4"
+            @submit="saveProject"
           >
-            <div class="flex justify-between items-center">
-              <div class="flex flex-col gap-2 flex-1">
-                <!-- Main task info -->
-
-                <div class="flex flex-col gap-1">
-                  <span class="font-semibold text-lg">{{ task.title }}</span>
-                  <span
-                    class="font-light text-sm text-gray-600 dark:text-gray-400"
-                  >
-                    {{ task.description }}
-                  </span>
-                </div>
-
-                <!-- Optional fields row -->
-                <div class="flex flex-wrap gap-2 items-center text-xs">
-                  <!-- Project -->
-                  <div
-                    v-if="task.project_details"
-                    class="flex items-center gap-1"
-                  >
-                    <UIcon
-                      name="i-heroicons-folder"
-                      class="w-3 h-3 text-primary-500"
-                    />
-                    <span
-                      class="text-primary-500 dark:text-primary-400 font-medium"
-                    >
-                      {{ task.project_details?.title }}
-                    </span>
-                  </div>
-
-                  <!-- Priority -->
-                  <UBadge
-                    v-if="task.priority"
-                    :color="
-                      task.priority === 'H'
-                        ? 'error'
-                        : task.priority === 'M'
-                        ? 'warning'
-                        : 'neutral'
-                    "
-                    variant="soft"
-                    size="sm"
-                  >
-                    {{
-                      priorityOptions.find((p) => p.value === task.priority)
-                        ?.label
-                    }}
-                  </UBadge>
-
-                  <!-- Deadline -->
-                  <div v-if="task.deadline" class="flex items-center gap-1">
-                    <UIcon
-                      name="i-heroicons-calendar-days"
-                      class="w-3 h-3"
-                      :class="
-                        isOverdue(task.deadline)
-                          ? 'text-red-500'
-                          : 'text-gray-500'
-                      "
-                    />
-                    <span
-                      class="text-xs"
-                      :class="
-                        isOverdue(task.deadline)
-                          ? 'text-red-600 dark:text-red-400 font-medium'
-                          : 'text-gray-500 dark:text-gray-400'
-                      "
-                    >
-                      {{ formatDeadline(task.deadline) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Status badge -->
-              <div
-                class="ml-4 flex-shrink-0 flex flex-col gap-3 justify-center items-end"
-              >
-                <UBadge
-                  :leading-icon="
-                    task.status === 'TODO'
-                      ? 'i-heroicons-exclamation-circle'
-                      : task.status === 'IN_PROGRESS'
-                      ? 'i-heroicons-arrow-right-circle'
-                      : 'i-heroicons-check-circle'
-                  "
-                  size="xl"
-                  class="capitalize"
-                  :color="
-                    task.status == 'TODO'
-                      ? 'error'
-                      : task.status === 'IN_PROGRESS'
-                      ? 'warning'
-                      : 'success'
-                  "
-                  variant="outline"
-                >
-                  {{ task.status.replace("_", " ").toLowerCase() }}
-                </UBadge>
-                <p class="text-muted text-sm">{{ task.author?.username }}</p>
-              </div>
+            <UFormField label="Title" name="title" required>
+              <UInput v-model="projectState.title" class="w-full" />
+            </UFormField>
+            <UFormField label="Description" name="description">
+              <UTextarea v-model="projectState.description" class="w-full" />
+            </UFormField>
+            <div class="flex justify-end gap-3 pt-4">
+              <UButton
+                label="Cancel"
+                color="neutral"
+                variant="outline"
+                icon="i-heroicons-x-mark"
+                @click="isProjectModalOpen = false"
+              />
+              <UButton type="submit" label="Save" icon="i-heroicons-check" />
             </div>
-          </UCard>
-        </div>
-      </div>
-    </div>
-    <!-- The Modal for Creating and Editing -->
+          </UForm>
+        </template>
+      </UModal>
 
-    <!-- <UModal
-      v-model:open="isModalOpen"
-      :dismissible="false"
-      :title="editingTask ? 'Edit Task' : 'Add New Task'"
-      :ui="{ footer: 'justify-end' }"
-    >
-      <template #body>
-        <UForm
-          :schema="taskSchema"
-          :state="taskState"
-          class="space-y-4"
-          @submit="saveTask"
-        >
-          <UFormField label="Title" name="title" required>
-            <UInput v-model="taskState.title" class="w-full" />
-          </UFormField>
-          <UFormField label="Description" name="description">
-            <UTextarea v-model="taskState.description" class="w-full" />
-          </UFormField>
-          <UFormField label="Status" name="status" required>
-            <USelect
-              v-model="taskState.status"
-              :items="statusOptions"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Priority" name="priority">
-            <USelect
-              v-model="taskState.priority"
-              :items="priorityOptions"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Deadline" name="deadline">
-            <CalendarFormFeild
-              v-model="taskState.deadline"
-              class="w-full bg-transparent"
-            />
-          </UFormField>
-          <div class="flex justify-end gap-3 pt-4">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              icon="i-heroicons-x-mark"
-              @click="isModalOpen = false"
-            />
-            <UButton
-              v-if="editingTask"
-              label="Delete"
-              color="error"
-              icon="i-heroicons-trash"
-              @click="() => deleteTask(editingTask!.id)"
-            />
-            <UButton type="submit" label="Save" icon="i-heroicons-check" />
-          </div>
-        </UForm>
-      </template>
-    </UModal> -->
-    <TaskModal
-      v-model:is-modal-open="isModalOpen"
-      :projects="null"
-      :status-create="null"
-      :editing-task="editingTask"
-      :current-tab="currentTab"
-      :project-id="route.params.id as string"
-      @saved="onTaskSaved"
-    />
+      <UModal v-model:open="isInviteMemberModalOpen" :dismissible="false">
+        <template #header>
+          <h3 class="text-lg font-semibold">Invite a New Member</h3>
+        </template>
+        <template #body>
+          <UForm :state="inviteState" class="space-y-4" @submit="onSubmit">
+            <UFormField
+              label="Email"
+              name="email"
+              :help="emailCheckMessage"
+              :ui="{
+                help: `text-sm ${
+                  emailCheckStatus === 'exists'
+                    ? 'text-green-500'
+                    : emailCheckStatus === 'not_found'
+                    ? 'text-orange-500'
+                    : emailCheckStatus === 'invalid'
+                    ? 'text-red-500'
+                    : ''
+                }`,
+              }"
+            >
+              <UInput
+                v-model="inviteState.email"
+                class="w-full"
+                placeholder="you@example.com"
+                :loading="emailCheckStatus === 'checking'"
+                :icon="
+                  emailCheckStatus === 'exists'
+                    ? 'i-heroicons-check-circle-20-solid'
+                    : emailCheckStatus === 'invalid'
+                    ? 'i-heroicons-exclamation-circle-20-solid'
+                    : undefined
+                "
+              />
+            </UFormField>
 
-    <UModal
-      v-model:open="isProjectModalOpen"
-      :dismissible="false"
-      title="Edit Project"
-      :ui="{ footer: 'justify-end' }"
-    >
-      <template #body>
-        <UForm
-          :schema="projectSchema"
-          :state="projectState"
-          class="space-y-4"
-          @submit="saveProject"
-        >
-          <UFormField label="Title" name="title" required>
-            <UInput v-model="projectState.title" class="w-full" />
-          </UFormField>
-          <UFormField label="Description" name="description">
-            <UTextarea v-model="projectState.description" class="w-full" />
-          </UFormField>
-          <div class="flex justify-end gap-3 pt-4">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              icon="i-heroicons-x-mark"
-              @click="isProjectModalOpen = false"
-            />
-            <UButton type="submit" label="Save" icon="i-heroicons-check" />
-          </div>
-        </UForm>
-      </template>
-    </UModal>
-
-    <UModal v-model:open="isInviteMemberModalOpen" :dismissible="false">
-      <template #header>
-        <h3 class="text-lg font-semibold">Invite a New Member</h3>
-      </template>
-      <template #body>
-        <UForm :state="inviteState" class="space-y-4" @submit="onSubmit">
-          <UFormField
-            label="Email"
-            name="email"
-            :help="emailCheckMessage"
-            :ui="{
-              help: `text-sm ${
-                emailCheckStatus === 'exists'
-                  ? 'text-green-500'
-                  : emailCheckStatus === 'not_found'
-                  ? 'text-orange-500'
-                  : emailCheckStatus === 'invalid'
-                  ? 'text-red-500'
-                  : ''
-              }`,
-            }"
-          >
-            <UInput
-              v-model="inviteState.email"
-              class="w-full"
-              placeholder="you@example.com"
-              :loading="emailCheckStatus === 'checking'"
-              :icon="
-                emailCheckStatus === 'exists'
-                  ? 'i-heroicons-check-circle-20-solid'
-                  : emailCheckStatus === 'invalid'
-                  ? 'i-heroicons-exclamation-circle-20-solid'
-                  : undefined
-              "
-            />
-          </UFormField>
-
-          <div class="flex justify-end gap-3">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              icon="i-heroicons-x-mark"
-              @click="isInviteMemberModalOpen = false"
-            />
-            <UButton
-              type="submit"
-              label="Send Invite"
-              color="primary"
-              :disabled="emailCheckStatus !== 'exists'"
-            />
-          </div>
-        </UForm>
-      </template>
-    </UModal>
-    <UPagination
-      v-model:page="page"
-      class="flex justify-end"
-      active-color="primary"
-      active-variant="subtle"
-      :total="tasksPaginatedResponse?.count"
-      size="md"
-      :items-per-page="6"
-      show-edges
-      :ui="{
-        ellipsis: 'w-8 h-8 flex items-center justify-center',
-        last: 'w-8 h-8 flex items-center justify-center',
-        first: 'w-8 h-8 flex items-center justify-center',
-        prev: 'w-8 h-8 flex items-center justify-center',
-        next: 'w-8 h-8 flex items-center justify-center',
-      }"
-      :sibling-count="1"
-    />
-  </UContainer>
+            <div class="flex justify-end gap-3">
+              <UButton
+                label="Cancel"
+                color="neutral"
+                variant="outline"
+                icon="i-heroicons-x-mark"
+                @click="isInviteMemberModalOpen = false"
+              />
+              <UButton
+                type="submit"
+                label="Send Invite"
+                color="primary"
+                :disabled="emailCheckStatus !== 'exists'"
+              />
+            </div>
+          </UForm>
+        </template>
+      </UModal></div
+  ></UContainer>
 </template>

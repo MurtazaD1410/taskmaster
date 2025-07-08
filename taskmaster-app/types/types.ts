@@ -28,7 +28,7 @@ export interface Project {
   created_at: Date;
 }
 
-export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE";
+export type TaskStatus = "TODO" | "BACKLOG" | "IN_PROGRESS" | "DONE";
 export type TaskPriority = "L" | "M" | "H";
 export type InvitationStatus = "P" | "A" | "D";
 

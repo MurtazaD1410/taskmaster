@@ -2,7 +2,7 @@
 import { formatDeadline, isOverdue } from "~/helpers/utils";
 import type { Task, TaskPaginatedResponse } from "~/types/types";
 
-type TabValue = "ALL" | "TODO" | "IN_PROGRESS" | "DONE";
+type TabValue = "ALL" | "TODO" | "BACKLOG" | "IN_PROGRESS" | "DONE";
 const priorityOptions = ref([
   { label: "Low", value: "L" },
   { label: "Medium", value: "M" },
@@ -14,6 +14,7 @@ const props = defineProps<{
   currentTab: TabValue;
   pending: boolean;
   error: any;
+  projectPage?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -66,7 +67,10 @@ function handleClick(task: Task) {
           <!-- Optional fields row -->
           <div class="flex flex-wrap gap-2 items-center text-xs">
             <!-- Project -->
-            <div v-if="task.project_details" class="flex items-center gap-1">
+            <div
+              v-if="task.project_details && !projectPage"
+              class="flex items-center gap-1"
+            >
               <UIcon
                 name="i-heroicons-folder"
                 class="w-3 h-3 text-primary-500"
@@ -125,6 +129,8 @@ function handleClick(task: Task) {
             :leading-icon="
               task.status === 'TODO'
                 ? 'i-heroicons-exclamation-circle'
+                : task.status === 'BACKLOG'
+                ? 'i-heroicons-clock'
                 : task.status === 'IN_PROGRESS'
                 ? 'i-heroicons-arrow-right-circle'
                 : 'i-heroicons-check-circle'
@@ -134,6 +140,8 @@ function handleClick(task: Task) {
             :color="
               task.status == 'TODO'
                 ? 'error'
+                : task.status === 'BACKLOG'
+                ? 'secondary'
                 : task.status === 'IN_PROGRESS'
                 ? 'warning'
                 : 'success'

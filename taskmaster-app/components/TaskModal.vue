@@ -12,6 +12,7 @@ const { saveTask, deleteTask } = useTaskService();
 
 const statusOptions = ref([
   { label: "Todo", value: "TODO" },
+  { label: "Backlog", value: "BACKLOG" },
   { label: "In Progress", value: "IN_PROGRESS" },
   { label: "Done", value: "DONE" },
 ]);
@@ -27,7 +28,7 @@ const props = defineProps<{
   projects: Project[] | null;
   projectId: string | null;
 
-  currentTab: "ALL" | "TODO" | "IN_PROGRESS" | "DONE";
+  currentTab: "ALL" | "TODO" | "BACKLOG" | "IN_PROGRESS" | "DONE";
 }>();
 
 const emit = defineEmits<{

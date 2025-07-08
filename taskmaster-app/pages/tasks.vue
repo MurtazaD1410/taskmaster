@@ -113,6 +113,7 @@ const items = [
         <TaskList
           v-model:current-tab="currentTab"
           v-model:page="page"
+          :project-page="false"
           :tasks-paginated-response="tasksPaginatedResponse"
           :pending="pending"
           :error="error"
@@ -121,7 +122,7 @@ const items = [
       </template>
 
       <template #kanban="{}">
-        <KanbanView :projects="projects" />
+        <KanbanView :projects="projects" :project-page="false" />
       </template>
     </UTabs>
 
