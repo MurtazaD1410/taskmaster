@@ -27,6 +27,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "project",
             "project_details",
             "priority",
+            "order",
             "deadline",
             "author",
             "created_at",
@@ -50,3 +51,20 @@ class TaskSerializer(serializers.ModelSerializer):
 
         # If the check passes, always return the project value. This is required.
         return project
+
+
+class TaskOrderUpdateSerializer(serializers.Serializer):
+    """
+    Serializer for the batch task order/status update endpoint.
+    Validates the incoming data structure.
+    """
+
+    # Use a ChoiceField to ensure the status is valid.
+    status = serializers.ChoiceField(choices=Task.Status.choices, required=True)
+
+    # Use a ListField with a child to ensure we get a list of integers.
+    ordered_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=True,
+        allow_empty=True,  # Don't allow empty lists
+    )

@@ -1,7 +1,7 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, generics
 from .models import Task
 from django.db.models import Q
-from .serializers import TaskSerializer
+from .serializers import TaskOrderUpdateSerializer, TaskSerializer
 from django.db.models.query import QuerySet
 from .permissions import IsProjectMemberForTask
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -9,6 +9,7 @@ from drf_spectacular.types import OpenApiTypes
 from rest_framework.response import Response
 from .pagination import TaskPagination
 from rest_framework.request import Request
+from django.db import transaction
 
 
 from typing import cast
@@ -103,4 +104,35 @@ class TaskViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+
+class TaskOrderUpdateView(generics.GenericAPIView):
+    """
+    An API endpoint to handle batch updates of task order and status.
+    Expects a POST request with a 'status' and a list of ordered_ids.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TaskOrderUpdateSerializer
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+        # Inside this block, Pylance now understands that
+        # `serializer.validated_data` is guaranteed to be a dictionary.
+
+        # The errors on these lines will disappear.
+        status_update = serializer.validated_data["status"]
+        ordered_ids = serializer.validated_data["ordered_ids"] or []
+
+        # The rest of your logic remains the same.
+        for index, task_id in enumerate(ordered_ids):
+            Task.objects.filter(id=task_id).update(order=index, status=status_update)
+
+        return Response(
+            {"detail": "Task order updated successfully."},
+            status=status.HTTP_200_OK,
         )

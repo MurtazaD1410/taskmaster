@@ -1,3 +1,5 @@
+import type { Task } from "~/types/types";
+
 export const isOverdue = (deadline: string) => {
   if (!deadline) return false;
   return new Date(deadline) < new Date();
@@ -21,5 +23,48 @@ export const formatDeadline = (deadline: string) => {
     return `Due in ${diffDays} days`;
   } else {
     return date.toLocaleDateString();
+  }
+};
+
+export const getIconAndColorForStatus = (
+  status: Task["status"]
+): {
+  color:
+    | "error"
+    | "primary"
+    | "secondary"
+    | "success"
+    | "info"
+    | "warning"
+    | "neutral"
+    | undefined;
+  icon: string;
+  label: string;
+} => {
+  switch (status) {
+    case "TODO":
+      return {
+        color: "error",
+        icon: "i-heroicons-exclamation-circle",
+        label: "Todo",
+      };
+    case "BACKLOG":
+      return {
+        color: "secondary",
+        icon: "i-heroicons-clock",
+        label: "Backlog",
+      };
+    case "IN_PROGRESS":
+      return {
+        color: "warning",
+        icon: "i-heroicons-arrow-right-circle",
+        label: "In Progress",
+      };
+    case "DONE":
+      return {
+        color: "success",
+        icon: "i-heroicons-check-circle",
+        label: "Done",
+      };
   }
 };

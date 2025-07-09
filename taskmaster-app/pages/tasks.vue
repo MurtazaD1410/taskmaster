@@ -74,14 +74,14 @@ function onTaskSaved() {
 
 const items = [
   {
-    label: "List",
-    icon: "i-heroicons-list-bullet",
-    slot: "list" as const,
-  },
-  {
     label: "Kanban",
     icon: "i-heroicons-view-columns",
     slot: "kanban" as const,
+  },
+  {
+    label: "List",
+    icon: "i-heroicons-list-bullet",
+    slot: "list" as const,
   },
 ] satisfies TabsItem[];
 </script>

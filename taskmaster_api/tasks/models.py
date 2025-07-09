@@ -33,6 +33,7 @@ class Task(models.Model):
         blank=True,
         help_text="Optional priority level of the task.",
     )
+    order = models.PositiveIntegerField(default=0, db_index=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tasks")
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True
@@ -47,4 +48,5 @@ class Task(models.Model):
         return self.title
 
     class Meta:
-        ordering = ["-created_at"]
+        # ordering = ["-created_at"]
+        ordering = ["order"]

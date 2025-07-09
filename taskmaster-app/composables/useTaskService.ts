@@ -62,33 +62,34 @@ export const useTaskService = () => {
     }
   }
 
-  async function changeTaskStatus(taskId: number, status: Task["status"]) {
+  async function updateColumnOnBackend(
+    columnStatus: Task["status"],
+    tasksInColumn: Task[]
+  ) {
+    const orderedIds = tasksInColumn.map((task) => task.id);
+    const payload = {
+      status: columnStatus,
+      ordered_ids: orderedIds,
+    };
+
+    console.log(payload);
+
     try {
-      await $api(`tasks/${taskId}/`, {
-        method: "PATCH",
-        body: { status },
+      await $api("/tasks/update-order/", {
+        method: "POST",
+        body: payload,
       });
-      toast.add({
-        title: "Task status updated successfully",
-        color: "success",
-      });
-    } catch (error: any) {
-      const errorData = error?.response?._data;
-      const errorMessage = errorData
-        ? Object.values(errorData).flat().join(" ")
-        : "An unknown error occurred.";
-      toast.add({
-        title: "Could not delete Task",
-        description: errorMessage,
-        color: "error",
-      });
-      throw error;
+    } catch (error) {
+      console.error(
+        `Failed to update order for column ${columnStatus}:`,
+        error
+      );
     }
   }
 
   return {
     saveTask,
     deleteTask,
-    changeTaskStatus,
+    updateColumnOnBackend,
   };
 };

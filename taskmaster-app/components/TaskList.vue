@@ -1,5 +1,9 @@
 <script lang="ts" setup>
-import { formatDeadline, isOverdue } from "~/helpers/utils";
+import {
+  formatDeadline,
+  getIconAndColorForStatus,
+  isOverdue,
+} from "~/helpers/utils";
 import type { Task, TaskPaginatedResponse } from "~/types/types";
 
 type TabValue = "ALL" | "TODO" | "BACKLOG" | "IN_PROGRESS" | "DONE";
@@ -126,31 +130,20 @@ function handleClick(task: Task) {
           class="ml-4 flex-shrink-0 flex flex-col gap-3 justify-center items-end"
         >
           <UBadge
-            :leading-icon="
-              task.status === 'TODO'
-                ? 'i-heroicons-exclamation-circle'
-                : task.status === 'BACKLOG'
-                ? 'i-heroicons-clock'
-                : task.status === 'IN_PROGRESS'
-                ? 'i-heroicons-arrow-right-circle'
-                : 'i-heroicons-check-circle'
-            "
-            size="xl"
+            :leading-icon="getIconAndColorForStatus(task.status).icon"
+            size="lg"
             class="capitalize"
-            :color="
-              task.status == 'TODO'
-                ? 'error'
-                : task.status === 'BACKLOG'
-                ? 'secondary'
-                : task.status === 'IN_PROGRESS'
-                ? 'warning'
-                : 'success'
-            "
+            :color="getIconAndColorForStatus(task.status).color"
             variant="outline"
+            :ui="{
+              leadingIcon: 'text-lg',
+            }"
           >
-            {{ task.status.replace("_", " ").toLowerCase() }}
+            {{ getIconAndColorForStatus(task.status).label }}
           </UBadge>
-          <p class="text-muted text-sm">{{ task.author?.username }}</p>
+          <p v-if="projectPage" class="text-muted text-sm">
+            {{ task.author?.username }}
+          </p>
         </div>
       </div>
     </UCard>

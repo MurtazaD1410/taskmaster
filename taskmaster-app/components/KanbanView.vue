@@ -6,6 +6,7 @@ import KanbanTaskCard from "./KanbanTaskCard.vue";
 import { taskSchema } from "~/schemas/taskSchema";
 import type { TaskSchema } from "~/schemas/taskSchema";
 import type { FormSubmitEvent } from "@nuxt/ui";
+import { getIconAndColorForStatus } from "~/helpers/utils";
 
 const props = defineProps<{
   projects: Project[] | null;
@@ -27,7 +28,7 @@ const priorityOptions = ref([
 
 const formRef = ref();
 const { $api } = useNuxtApp();
-const { saveTask, deleteTask, changeTaskStatus } = useTaskService();
+const { saveTask, deleteTask, updateColumnOnBackend } = useTaskService();
 const authStore = useAuthStore();
 const isSliderOpen = ref(false);
 const route = useRoute();
@@ -87,43 +88,33 @@ const {
   }
 );
 
-const todoTasks = ref<Task[]>([]);
-const backlogTasks = ref<Task[]>([]);
-const inProgressTasks = ref<Task[]>([]);
-const doneTasks = ref<Task[]>([]);
+const columns = reactive<{ [key in Task["status"]]: Task[] }>({
+  TODO: [],
+  BACKLOG: [],
+  IN_PROGRESS: [],
+  DONE: [],
+});
 
 watch(
   () => tasks.value,
   (newTasksArray) => {
-    const allTasks: Task[] = newTasksArray ?? [];
+    const allTasks = newTasksArray ?? [];
 
-    todoTasks.value = allTasks.filter((task) => task.status === "TODO");
-    backlogTasks.value = allTasks.filter((task) => task.status === "BACKLOG");
-    inProgressTasks.value = allTasks.filter(
-      (task) => task.status === "IN_PROGRESS"
-    );
-    doneTasks.value = allTasks.filter((task) => task.status === "DONE");
-  },
-  {
-    deep: true,
-    immediate: true,
-  }
-);
+    // Reset all columns first to handle deletions
+    columns.TODO = [];
+    columns.BACKLOG = [];
+    columns.IN_PROGRESS = [];
+    columns.DONE = [];
 
-async function handleTaskChange(event: any, newStatus: Task["status"]) {
-  if (event.added) {
-    console.log(event.added.element);
-    const movedTask: Task = event.added.element;
-    console.log(`Task "${movedTask.title}" was moved to status: ${newStatus}`);
-
-    try {
-      await changeTaskStatus(movedTask.id, newStatus);
-      refresh();
-    } catch (error) {
-      console.error("Failed to update task status:", error);
+    // Distribute tasks into the correct column
+    for (const task of allTasks) {
+      if (columns[task.status]) {
+        columns[task.status].push(task);
+      }
     }
-  }
-}
+  },
+  { deep: true, immediate: true }
+);
 
 function openEditSlider(task: Task) {
   editingTask.value = task; // Set the task to be edited
@@ -155,171 +146,113 @@ async function handleDelete(taskId: number) {
     console.error("Save task failed, keeping modal open.");
   }
 }
+
+const dragInfo = ref<{ fromColumnStatus: string | null }>({
+  fromColumnStatus: null,
+});
+
+function onDragStart(event: any, columnStatus: Task["status"]) {
+  dragInfo.value.fromColumnStatus = columnStatus;
+}
+
+// --- 3. THE CLEANER onDragEnd HANDLER ---
+async function onDragEnd(event: any, toStatus: Task["status"]) {
+  const fromStatus = dragInfo.value.fromColumnStatus;
+
+  if (!fromStatus || !toStatus) {
+    console.error("Could not determine source or destination column status.");
+    return;
+  }
+
+  const destTasks = columns[toStatus];
+  await updateColumnOnBackend(toStatus, destTasks);
+
+  if (fromStatus !== toStatus) {
+    const sourceTasks = columns[fromStatus as Task["status"]];
+    await updateColumnOnBackend(fromStatus as Task["status"], sourceTasks);
+  }
+
+  refresh();
+  dragInfo.value.fromColumnStatus = null;
+}
+
+async function handleTaskChange(event: any, columnStatus: Task["status"]) {
+  // This function will be called MULTIPLE times during a single drag-and-drop
+  // between columns: once for the 'removed' event on the source column, and
+  // once for the 'added' event on the destination column.
+
+  if (event.added) {
+    // --- A TASK WAS ADDED TO THIS COLUMN ---
+    // The `v-model` has already updated the local array.
+    // We just need to tell the backend about the new state of this column.
+    console.log(`Task ADDED to ${columnStatus}. Updating backend.`);
+    const tasksInColumn = columns[columnStatus];
+    await updateColumnOnBackend(columnStatus, tasksInColumn);
+  } else if (event.removed) {
+    // --- A TASK WAS REMOVED FROM THIS COLUMN ---
+    // Same logic applies. The local array is already updated (the task is gone).
+    // We tell the backend about the new state of this source column.
+    console.log(`Task REMOVED from ${columnStatus}. Updating backend.`);
+    const tasksInColumn = columns[columnStatus];
+    await updateColumnOnBackend(columnStatus, tasksInColumn);
+  } else if (event.moved) {
+    // --- A TASK WAS RE-ORDERED WITHIN THIS COLUMN ---
+    // Same logic again. The local array is already re-ordered.
+    // Tell the backend about the new order.
+    console.log(`Task MOVED within ${columnStatus}. Updating backend.`);
+    const tasksInColumn = columns[columnStatus];
+    await updateColumnOnBackend(columnStatus, tasksInColumn);
+  }
+}
 </script>
 
 <template>
   <div class="">
-    <p class="text-gray-600 mb-4">KanbanView Example - Drag between lists</p>
+    <p class="text-gray-600 mb-4">Kanban - Organize your tasks easily</p>
 
-    <div class="flex gap-3">
-      <!-- Column 1 -->
-      <div class="w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg min-h-[400px]">
+    <div
+      class="flex gap-3 overflow-x-scroll"
+      :style="{ scrollbarWidth: 'none' }"
+    >
+      <div
+        v-for="(tasksInColumn, status) in columns"
+        :key="status"
+        class="flex-1 min-w-xs bg-gray-100 dark:bg-gray-800 rounded-lg"
+      >
         <div
           class="flex justify-between items-center border-b dark:border-gray-600 border-gray-300 p-3"
         >
-          <!-- <h3 class="font-semibold flex gap-3 items-center">
-            <UIcon name="i-heroicons-exclamation-circle text-2xl" size="xl" />
-            Todo
-          </h3> -->
           <UBadge
-            :leading-icon="'i-heroicons-exclamation-circle'"
+            :leading-icon="getIconAndColorForStatus(status).icon"
             size="xl"
             class="capitalize"
-            color="error"
+            :color="getIconAndColorForStatus(status).color"
             variant="outline"
+            :ui="{
+              leadingIcon: 'text-xl',
+            }"
           >
-            Todo
+            {{ getIconAndColorForStatus(status).label }}
           </UBadge>
           <UButton
             icon="i-heroicons-plus"
             variant="subtle"
-            @click="openCreateSlider('TODO')"
+            @click="openCreateSlider(status)"
           />
         </div>
         <draggable
-          v-model="todoTasks"
+          v-model="columns[status]"
           group="tasks"
           :animation="200"
           ghost-class="ghost"
           item-key="id"
           :swap-threshold="0.7"
           class="min-h-[200px] pb-10 p-3"
-          @change="(event:any) => handleTaskChange(event, 'TODO')"
+          @change="handleTaskChange($event, status)"
         >
           <template #item="{ element: task }">
             <KanbanTaskCard :task="task" @click="openEditSlider(task)" />
           </template>
-        </draggable>
-      </div>
-
-      <div class="w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg min-h-[400px]">
-        <div
-          class="flex justify-between items-center border-b dark:border-gray-600 border-gray-300 p-3"
-        >
-          <!-- <h3 class="font-semibold flex gap-3 items-center">
-            <UIcon name="i-heroicons-exclamation-circle text-2xl" size="xl" />
-            Todo
-          </h3> -->
-          <UBadge
-            :leading-icon="'i-heroicons-clock'"
-            size="xl"
-            class="capitalize"
-            color="secondary"
-            variant="outline"
-          >
-            Backlog
-          </UBadge>
-          <UButton
-            icon="i-heroicons-plus"
-            variant="subtle"
-            @click="openCreateSlider('BACKLOG')"
-          />
-        </div>
-        <draggable
-          v-model="backlogTasks"
-          group="tasks"
-          :animation="200"
-          ghost-class="ghost"
-          item-key="id"
-          :swap-threshold="0.7"
-          class="min-h-[200px] pb-10 p-3"
-          @change="(event:any) => handleTaskChange(event, 'BACKLOG')"
-        >
-          <template #item="{ element: task }">
-            <KanbanTaskCard :task="task" @click="openEditSlider(task)" />
-          </template>
-        </draggable>
-      </div>
-
-      <!-- Column 2 -->
-      <div class="w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg min-h-[400px]">
-        <div
-          class="flex justify-between items-center border-b dark:border-gray-600 border-gray-300 p-3"
-        >
-          <!-- <h3 class="font-semibold flex gap-3 items-center">
-            <UIcon name="i-heroicons-arrow-right-circle text-2xl" size="xl" />
-            In Progress
-          </h3> -->
-
-          <UBadge
-            :leading-icon="'i-heroicons-arrow-right-circle'"
-            size="xl"
-            class="capitalize"
-            color="warning"
-            variant="outline"
-          >
-            In Progress
-          </UBadge>
-          <UButton
-            variant="subtle"
-            icon="i-heroicons-plus"
-            @click="openCreateSlider('IN_PROGRESS')"
-          />
-        </div>
-
-        <draggable
-          v-model="inProgressTasks"
-          group="tasks"
-          :animation="200"
-          ghost-class="ghost"
-          :swap-threshold="0.7"
-          item-key="id"
-          class="min-h-[200px] pb-10 p-3"
-          @change="(event:any) => handleTaskChange(event, 'IN_PROGRESS')"
-        >
-          <template #item="{ element: task }">
-            <KanbanTaskCard :task="task" @click="openEditSlider(task)" />
-          </template>
-        </draggable>
-      </div>
-      <div class="w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg min-h-[400px]">
-        <div
-          class="flex justify-between items-center border-b dark:border-gray-600 border-gray-300 p-3"
-        >
-          <!-- <h3 class="font-semibold flex gap-3 items-center">
-            <UIcon name="i-heroicons-check-circle text-2xl" size="xl" />
-            Done
-          </h3> -->
-
-          <UBadge
-            :leading-icon="'i-heroicons-arrow-right-circle'"
-            size="xl"
-            class="capitalize"
-            color="success"
-            variant="outline"
-          >
-            Done
-          </UBadge>
-          <UButton
-            variant="subtle"
-            icon="i-heroicons-plus"
-            @click="openCreateSlider('DONE')"
-          />
-        </div>
-        <draggable
-          v-model="doneTasks"
-          group="tasks"
-          :swap-threshold="0.7"
-          :animation="200"
-          ghost-class="ghost"
-          item-key="id"
-          class="min-h-[200px] pb-10 p-3"
-          @change="(event:any) => handleTaskChange(event, 'DONE')"
-        >
-          <template #item="{ element: task }">
-            <KanbanTaskCard :task="task" @click="openEditSlider(task)" />
-          </template>
-          <div class="h-16" />
         </draggable>
       </div>
     </div>
@@ -397,6 +330,17 @@ async function handleDelete(taskId: number) {
           />
         </UFormField>
       </UForm>
+      <div v-if="editingTask?.author" class="my-4 flex items-center space-x-3">
+        <UAvatar
+          :src="editingTask.author.avatar"
+          :alt="editingTask.author.username"
+          size="md"
+        />
+        <div>
+          <p class="text-sm font-medium text-gray-700">Created by</p>
+          <p class="text-sm text-gray-500">{{ editingTask.author.username }}</p>
+        </div>
+      </div>
     </template>
     <template #footer="{ close }">
       <UButton
