@@ -8,9 +8,6 @@ definePageMeta({
 });
 
 const { $api } = useNuxtApp();
-const { user } = useAuthStore();
-const route = useRoute();
-const router = useRouter();
 
 const currentTab = ref<"ALL" | "TODO" | "IN_PROGRESS" | "DONE">("ALL");
 const page = ref(1);

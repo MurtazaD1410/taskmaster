@@ -1,53 +1,27 @@
-# This file orchestrates all your containers.
+version: "3.8"
 
 services:
-  # The PostgreSQL Database Service
-  db:
-    image: postgres:15-alpine
+  app:
+    build: ./taskmaster_api
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_USER=taskmaster_user
-      - POSTGRES_PASSWORD=admin@123
-      - POSTGRES_DB=taskmaster_db
-    container_name: taskmaster_db
+      - sqlite_data:/app/data/
+      - ./taskmaster_api/staticfiles:/app/staticfiles
+      - ./taskmaster_api/media:/app/media
+    env_file:
+      - ./.env
+    command: sh -c "python manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:8000"
 
-  # The Django Backend Service
-  backend:
-    build: . # This tells it to use the Dockerfile in the current folder.
-    container_name: taskmaster_backend
-    volumes:
-      - static_volume:/app/staticfiles
-    expose:
-      - 8000
-    # env_file: .env.prod
-    environment:
-      - SECRET_KEY="django-insecure-832&nus!4*j5$li*%#lp#zct9u7z2m_3umfk#w(uq+6-i#k70m"
-      - DEBUG=False
-      - ALLOWED_HOSTS=54.90.204.70
-      - DATABASE_URL=postgres://taskmaster_user:admin@123@db:5432/taskmaster_db
-    depends_on:
-      - db
-
-  # The Nginx Web Server Service (The Public Entrypoint)
   nginx:
-    # --- THIS IS THE FIX ---
     build:
-      context: . # Use the current directory (project root) as the build context.
-      dockerfile: nginx/Dockerfile # Specify the path to the Dockerfile to use.
-    # ---------------------
-    container_name: taskmaster_nginx
+      context: .
+      dockerfile: nginx/Dockerfile
+    volumes:
+      - ./taskmaster_api/staticfiles:/app/staticfiles
+      - ./taskmaster_api/media:/app/media
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      # The volumes remain the same.
-      - static_volume:/usr/share/nginx/html/static
-      - ./certs:/etc/nginx/ssl
     depends_on:
-      - backend
+      - app
 
-# Defines the volumes used by the services.
 volumes:
-  postgres_data:
-  static_volume:
+  sqlite_data:

@@ -1,21 +1,28 @@
-# This is the final, bulletproof Dockerfile for your Nginx service.
+# --- Stage 1: Build the Vue.js frontend ---
+FROM node:18-alpine AS builder
 
-# Start from the official lightweight Nginx image.
-FROM nginx:1.23-alpine
+WORKDIR /app
 
-# Copy our built Nuxt frontend files into the image's web root.
-COPY frontend_static /usr/share/nginx/html
+# Copy package files and install dependencies
+COPY ./taskmaster-app/package*.json ./
+RUN npm install
 
-# Remove the default Nginx configuration files to prevent conflicts.
-RUN rm /etc/nginx/conf.d/default.conf
+# Copy the rest of the frontend source code
+COPY ./taskmaster-app/ ./
+RUN npm run build
 
-# Copy our custom production configuration.
-COPY nginx/prod.conf /etc/nginx/conf.d/default.conf
 
-# --- THIS IS THE CRITICAL FIX ---
-# Change the ownership of all web root files to the 'nginx' user.
-# The Nginx process runs as this user, so this guarantees it has permission.
-RUN chown -R nginx:nginx /usr/share/nginx/html
+# --- Stage 2: Create the final Nginx image ---
+FROM nginx:stable-alpine
 
-# For good measure, also ensure the files are world-readable.
-RUN chmod -R 755 /usr/share/nginx/html
+# Copy the built Vue app from the 'builder' stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy our custom Nginx configuration
+COPY ./nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]

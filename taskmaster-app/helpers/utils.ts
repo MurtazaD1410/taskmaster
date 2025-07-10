@@ -26,6 +26,19 @@ export const formatDeadline = (deadline: string) => {
   }
 };
 
+export const formatDate = (date: string) => {
+  if (!date) return "";
+
+  const dateObj = new Date(date);
+  const options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  };
+
+  return dateObj.toLocaleDateString("en-US", options);
+};
+
 export const getIconAndColorForStatus = (
   status: Task["status"]
 ): {

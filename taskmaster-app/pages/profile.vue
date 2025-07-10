@@ -2,6 +2,7 @@
 import { UAvatar, UInput, UTextarea } from "#components";
 import type { FormSubmitEvent } from "@nuxt/ui";
 import { z } from "zod";
+import { formatDate } from "~/helpers/utils";
 import type { UserDetail } from "~/types/types";
 
 const toast = useToast();
@@ -209,7 +210,12 @@ async function deleteUser() {
         <div class="flex flex-col gap-2 items-center justify-center">
           <UAvatar :src="user.avatar" :alt="user.username" class="w-28 h-28" />
           <div class="flex flex-col items-center justify-center">
-            <p class="font-semibold text-xl">{{ user.username }}</p>
+            <p class="font-semibold text-xl">
+              {{ user.username }}
+              <span class="text-muted italic text-xs font-normal"
+                >Joined ({{ formatDate(user.created_at) }})</span
+              >
+            </p>
             <p class="text-muted">{{ user.email }}</p>
           </div>
           <div class="">

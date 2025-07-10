@@ -13,7 +13,7 @@ export default defineNuxtConfig({
     public: {
       // This variable will hold our API URL.
       // The default value points to your local Django server.
-      // apiBase: "https://54.90.204.70/api/",
+      // apiBase: "https://54.165.141.27/api/",
       apiBase: "http://localhost:8000/api/",
     },
   },

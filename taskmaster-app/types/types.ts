@@ -12,6 +12,7 @@ export interface UserDetail {
   email: string;
   bio: string;
   avatar: string;
+  created_at: string;
 }
 
 export interface RefreshTokenObject {
