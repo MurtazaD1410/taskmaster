@@ -46,6 +46,7 @@ export interface Task {
   project_details: Project | null;
   priority?: TaskPriority | null;
   deadline?: string | null;
+  assignee_details: User | null;
   author: User;
   created_at: Date;
 }

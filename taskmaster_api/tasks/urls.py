@@ -1,11 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import TaskViewSet, TaskOrderUpdateView
+from .views import TaskViewSet, TaskOrderUpdateView, MyTasksViewSet
 
 # Create a router and register our viewset with it
 router = DefaultRouter()
 router.register(r"tasks", TaskViewSet, basename="task")
-
+router.register(r"my-tasks", MyTasksViewSet, basename="my-task")
 # The API URLs are now determined automatically by the render
 urlpatterns = [
     path(

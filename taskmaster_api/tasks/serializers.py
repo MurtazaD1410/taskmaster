@@ -3,6 +3,9 @@ from .models import Task
 from users.serializers import UserSerializer
 from projects.models import Project
 from projects.serializers import ProjectSerializer
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -15,6 +18,13 @@ class TaskSerializer(serializers.ModelSerializer):
         required=False,  # Make it optional if tasks can exist without a project
         allow_null=True,  # Also allow null to be sent
     )
+    assignee = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        write_only=True,
+        required=False,  # Make it optional if tasks can exist without a project
+        allow_null=True,  # Also allow null to be sent
+    )
+    assignee_details = UserSerializer(source="assignee", read_only=True)
     project_details = ProjectSerializer(source="project", read_only=True)
 
     class Meta:
@@ -28,6 +38,8 @@ class TaskSerializer(serializers.ModelSerializer):
             "project_details",
             "priority",
             "order",
+            "assignee",
+            "assignee_details",
             "deadline",
             "author",
             "created_at",

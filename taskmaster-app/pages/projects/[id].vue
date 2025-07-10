@@ -294,7 +294,7 @@ async function removeMember(user_id: number, project_id: number) {
 }
 async function leaveProject(project_id: number) {
   try {
-    await $api(`projects/${project_id}/members/`, {
+    await $api(`projects/${project_id}/leave/`, {
       method: "DELETE",
     });
     toast.add({ title: "Project left Successfully!", color: "success" });
@@ -514,6 +514,7 @@ const tabItems = [
 
       <TaskModal
         v-model:is-modal-open="isModalOpen"
+        :project-page="true"
         :projects="null"
         :status-create="null"
         :editing-task="editingTask"

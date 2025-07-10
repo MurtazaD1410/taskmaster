@@ -3,9 +3,10 @@ import { reactive, watch } from "vue";
 import type { FormSubmitEvent } from "@nuxt/ui";
 import { taskSchema } from "~/schemas/taskSchema";
 import type { TaskSchema } from "~/schemas/taskSchema";
-import type { Project, Task } from "~/types/types";
+import type { Project, Task, User } from "~/types/types";
 
 const formRef = ref();
+const { $api } = useNuxtApp();
 const route = useRoute();
 const router = useRouter();
 const { saveTask, deleteTask } = useTaskService();
@@ -27,7 +28,7 @@ const props = defineProps<{
   editingTask: Task | null;
   projects: Project[] | null;
   projectId: string | null;
-
+  projectPage?: boolean;
   currentTab: "ALL" | "TODO" | "BACKLOG" | "IN_PROGRESS" | "DONE";
 }>();
 
@@ -63,12 +64,44 @@ watch(
         state.project = task.project_details?.id;
         state.status = task.status;
         state.priority = task.priority || undefined;
+        state.assignee = task.assignee_details?.id;
         state.deadline = task.deadline || undefined;
       } else {
         // Reset form for creating
         Object.assign(state, getDefaultState());
       }
     }
+  }
+);
+
+const {
+  data: members,
+  pending: membersPending,
+  error: membersError,
+  refresh: membersRefresh,
+} = useAsyncData<Array<User>>(
+  // () => `members-${props.projectId}`,
+  // () => {
+  //   return $api(
+  //     `/projects/${props.projectPage ? props.projectId : state.project}/members`
+  //   );
+  // },
+  // {
+  //   watch: [() => state.project],
+  //   server: false,
+  // }
+  () => `members-${props.projectId ?? state.project}`, // Key must stay unique
+  () => {
+    const projectId = props.projectPage ? props.projectId : state.project;
+
+    if (!projectId) return Promise.resolve([]);
+
+    return $api(`/projects/${projectId}/members`);
+  },
+  {
+    // ✅ Watch both reactively, but only when they exist
+    watch: [() => props.projectId, () => state.project],
+    server: false,
   }
 );
 
@@ -91,6 +124,32 @@ async function handleDelete(taskId: number) {
     console.error("Save task failed, keeping modal open.");
   }
 }
+
+const items = ref<
+  Array<{ label: string; avatar: { src: string; alt: string }; value: number }>
+>([]);
+watch(
+  () => members.value,
+  (newMembers) => {
+    if (newMembers) {
+      items.value = newMembers.map((member) => ({
+        label: member.username,
+        avatar: { src: member.avatar, alt: member.username },
+        value: member.id, // optional, if needed for select
+      }));
+    }
+  },
+  { immediate: true }
+);
+
+const avatar = computed(() => {
+  const item = items.value.find((item) => item.value === state.assignee);
+  // item might be undefined, and might be primitive, so check type
+  if (item && typeof item === "object" && "avatar" in item) {
+    return item.avatar;
+  }
+  return undefined; // or some fallback
+});
 </script>
 
 <template>
@@ -157,7 +216,7 @@ async function handleDelete(taskId: number) {
         <UFormField label="Priority" name="priority">
           <USelect
             v-model="state.priority"
-            :items="priorityOptions"
+            :items="[{ label: 'None', value: null }, ...priorityOptions]"
             class="w-full"
           />
         </UFormField>
@@ -165,6 +224,18 @@ async function handleDelete(taskId: number) {
           <CalendarFormFeild
             v-model="state.deadline"
             class="w-full bg-transparent"
+          />
+        </UFormField>
+        <UFormField
+          v-if="state.project || projectPage"
+          label="Assignee"
+          name="assignee"
+        >
+          <USelect
+            v-model="state.assignee"
+            :items="[{ label: 'None', value: null }, ...items]"
+            class="w-full"
+            :avatar="avatar"
           />
         </UFormField>
       </UForm>

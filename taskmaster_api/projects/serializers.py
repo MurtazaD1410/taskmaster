@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Project
+from .models import Project, ProjectMembership
 from users.serializers import UserSerializer
 
 
@@ -33,3 +33,14 @@ class ProjectBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ["id", "title", "owner", "description"]
+
+
+class ProjectMemberSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="user.id")
+    username = serializers.CharField(source="user.username")
+    email = serializers.EmailField(source="user.email")
+    avatar = serializers.ImageField(source="user.avatar")
+
+    class Meta:
+        model = ProjectMembership
+        fields = ["id", "username", "email", "avatar"]

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import draggable from "vuedraggable";
-import type { Project, Task } from "~/types/types";
+import type { Project, Task, User } from "~/types/types";
 import KanbanTaskCard from "./KanbanTaskCard.vue";
 import { taskSchema } from "~/schemas/taskSchema";
 import type { TaskSchema } from "~/schemas/taskSchema";
-import type { FormSubmitEvent } from "@nuxt/ui";
+import type { FormSubmitEvent, SelectItem } from "@nuxt/ui";
 import { getIconAndColorForStatus } from "~/helpers/utils";
 
 const props = defineProps<{
@@ -44,6 +44,7 @@ const getDefaultState = (): Partial<TaskSchema> => ({
   status: "TODO",
   priority: undefined,
   deadline: undefined,
+  assignee: undefined,
 });
 
 const state = reactive<Partial<TaskSchema>>(getDefaultState());
@@ -60,6 +61,7 @@ watch(
         state.status = task.status;
         state.priority = task.priority || undefined;
         state.deadline = task.deadline || undefined;
+        state.assignee = task.assignee_details?.id;
       } else {
         Object.assign(state, getDefaultState());
       }
@@ -73,9 +75,9 @@ const {
   error,
   refresh,
 } = useAsyncData<Array<Task>>(
-  () => `tasks-kanban`,
+  () => `tasks-kanban-${route.fullPath}`,
   () => {
-    let url = `/tasks/?author=${user.value?.id}&paginate=false`;
+    let url = `/my-tasks/?paginate=false`;
 
     if (props.projectPage) {
       url = `/tasks/?project=${props.projectId}&paginate=false`;
@@ -83,7 +85,28 @@ const {
     return $api(url);
   },
   {
-    watch: [user],
+    watch: [user, () => route.fullPath],
+    server: false,
+  }
+);
+
+const {
+  data: members,
+  pending: membersPending,
+  error: membersError,
+  refresh: membersRefresh,
+} = useAsyncData<Array<User>>(
+  () => `members-${props.projectId ?? state.project}`, // Key must stay unique
+  () => {
+    const projectId = props.projectPage ? props.projectId : state.project;
+
+    if (!projectId) return Promise.resolve([]);
+
+    return $api(`/projects/${projectId}/members`);
+  },
+  {
+    // ✅ Watch both reactively, but only when they exist
+    watch: [() => props.projectId, () => state.project],
     server: false,
   }
 );
@@ -147,35 +170,6 @@ async function handleDelete(taskId: number) {
   }
 }
 
-const dragInfo = ref<{ fromColumnStatus: string | null }>({
-  fromColumnStatus: null,
-});
-
-function onDragStart(event: any, columnStatus: Task["status"]) {
-  dragInfo.value.fromColumnStatus = columnStatus;
-}
-
-// --- 3. THE CLEANER onDragEnd HANDLER ---
-async function onDragEnd(event: any, toStatus: Task["status"]) {
-  const fromStatus = dragInfo.value.fromColumnStatus;
-
-  if (!fromStatus || !toStatus) {
-    console.error("Could not determine source or destination column status.");
-    return;
-  }
-
-  const destTasks = columns[toStatus];
-  await updateColumnOnBackend(toStatus, destTasks);
-
-  if (fromStatus !== toStatus) {
-    const sourceTasks = columns[fromStatus as Task["status"]];
-    await updateColumnOnBackend(fromStatus as Task["status"], sourceTasks);
-  }
-
-  refresh();
-  dragInfo.value.fromColumnStatus = null;
-}
-
 async function handleTaskChange(event: any, columnStatus: Task["status"]) {
   // This function will be called MULTIPLE times during a single drag-and-drop
   // between columns: once for the 'removed' event on the source column, and
@@ -204,6 +198,32 @@ async function handleTaskChange(event: any, columnStatus: Task["status"]) {
     await updateColumnOnBackend(columnStatus, tasksInColumn);
   }
 }
+
+const items = ref<
+  Array<{ label: string; avatar: { src: string; alt: string }; value: number }>
+>([]);
+watch(
+  () => members.value,
+  (newMembers) => {
+    if (newMembers) {
+      items.value = newMembers.map((member) => ({
+        label: member.username,
+        avatar: { src: member.avatar, alt: member.username },
+        value: member.id, // optional, if needed for select
+      }));
+    }
+  },
+  { immediate: true }
+);
+
+const avatar = computed(() => {
+  const item = items.value.find((item) => item.value === state.assignee);
+  // item might be undefined, and might be primitive, so check type
+  if (item && typeof item === "object" && "avatar" in item) {
+    return item.avatar;
+  }
+  return undefined; // or some fallback
+});
 </script>
 
 <template>
@@ -217,7 +237,7 @@ async function handleTaskChange(event: any, columnStatus: Task["status"]) {
       <div
         v-for="(tasksInColumn, status) in columns"
         :key="status"
-        class="flex-1 min-w-xs bg-gray-100 dark:bg-gray-800 rounded-lg"
+        class="flex-1 min-w-[300px] bg-gray-100 dark:bg-gray-800 rounded-lg"
       >
         <div
           class="flex justify-between items-center border-b dark:border-gray-600 border-gray-300 p-3"
@@ -251,7 +271,11 @@ async function handleTaskChange(event: any, columnStatus: Task["status"]) {
           @change="handleTaskChange($event, status)"
         >
           <template #item="{ element: task }">
-            <KanbanTaskCard :task="task" @click="openEditSlider(task)" />
+            <KanbanTaskCard
+              :task="task"
+              :project-page="projectPage"
+              @click="openEditSlider(task)"
+            />
           </template>
         </draggable>
       </div>
@@ -286,6 +310,7 @@ async function handleTaskChange(event: any, columnStatus: Task["status"]) {
           <USelect
             v-model="state.project"
             :items="[
+                // { label: 'None', value: null },
                   ...projects?.map((project: Project) => ({
                     label: project.title,
                     value: project.id,
@@ -319,7 +344,7 @@ async function handleTaskChange(event: any, columnStatus: Task["status"]) {
         <UFormField label="Priority" name="priority">
           <USelect
             v-model="state.priority"
-            :items="priorityOptions"
+            :items="[{ label: 'None', value: null }, ...priorityOptions]"
             class="w-full"
           />
         </UFormField>
@@ -327,6 +352,18 @@ async function handleTaskChange(event: any, columnStatus: Task["status"]) {
           <CalendarFormFeild
             v-model="state.deadline"
             class="w-full bg-transparent"
+          />
+        </UFormField>
+        <UFormField
+          v-if="state.project || projectPage"
+          label="Assignee"
+          name="assignee"
+        >
+          <USelect
+            v-model="state.assignee"
+            :items="[{ label: 'None', value: null }, ...items]"
+            class="w-full"
+            :avatar="avatar"
           />
         </UFormField>
       </UForm>

@@ -1,12 +1,13 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import Project, ProjectMembership
-from .serializers import ProjectSerializer
+from .serializers import ProjectMemberSerializer, ProjectSerializer
 from .permissions import IsMember, IsProjectOwner
 from typing import cast
 from users.models import CustomUser
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 
 
 # Create your views here.
@@ -60,6 +61,7 @@ class ProjectMemberRemoveView(APIView):
     API view to remove a member from a project.
     """
 
+    @extend_schema(responses={204: None})
     def delete(self, request, project_pk, user_pk):
         project = get_object_or_404(Project, pk=project_pk)
         user = get_object_or_404(CustomUser, pk=user_pk)
@@ -91,6 +93,7 @@ class ProjectMemberRemoveView(APIView):
 class ProjectMemberLeave(APIView):
     permission_classes = [permissions.IsAuthenticated, IsMember]
 
+    @extend_schema(responses={204: None})
     def delete(self, request, project_pk):
         project = get_object_or_404(Project, pk=project_pk)
 
@@ -112,3 +115,24 @@ class ProjectMemberLeave(APIView):
 
         membership.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProjectMembersList(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsMember]
+    serializer_class = ProjectMemberSerializer
+
+    def get(self, request, project_pk):
+        project = get_object_or_404(Project, pk=project_pk)
+
+        try:
+            ProjectMembership.objects.get(project=project, user=request.user)
+        except:
+            return Response(
+                {"detail": "You are not a member of this project."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        memberships = ProjectMembership.objects.filter(project=project).select_related(
+            "user"
+        )
+        serializer = self.get_serializer(memberships, many=True)
+        return Response(serializer.data)

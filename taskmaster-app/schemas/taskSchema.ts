@@ -5,8 +5,9 @@ export const taskSchema = z.object({
   description: z.string().optional(),
   project: z.number().optional(),
   status: z.enum(["TODO", "BACKLOG", "IN_PROGRESS", "DONE"]),
-  priority: z.enum(["L", "M", "H"]).optional(),
-  deadline: z.string().optional(),
+  priority: z.enum(["L", "M", "H"]).optional().nullable(),
+  deadline: z.string().optional().nullable(),
+  assignee: z.number().optional().nullable(),
 });
 
 export type TaskSchema = z.infer<typeof taskSchema>;

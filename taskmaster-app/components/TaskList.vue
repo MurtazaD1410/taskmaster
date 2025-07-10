@@ -35,7 +35,7 @@ function handleClick(task: Task) {
 <template>
   <TaskFilterButton
     :current-tab="props.currentTab"
-    class="mb-8"
+    class="mb-4"
     @update:current-tab="emit('update:currentTab', $event)"
   />
 
@@ -141,6 +141,19 @@ function handleClick(task: Task) {
           >
             {{ getIconAndColorForStatus(task.status).label }}
           </UBadge>
+          <div
+            v-if="task.assignee_details"
+            class="ml-4 flex-shrink-0 flex items-center justify-center"
+          >
+            <UTooltip :text="task.assignee_details.username">
+              <UAvatar
+                :src="task.assignee_details.avatar"
+                :alt="task.assignee_details.username"
+              />
+            </UTooltip>
+
+            <!-- <p class="text-muted text-sm">{{ task.author?.username }}</p> -->
+          </div>
           <p v-if="projectPage" class="text-muted text-sm">
             {{ task.author?.username }}
           </p>

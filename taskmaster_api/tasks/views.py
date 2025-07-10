@@ -70,6 +70,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         user = cast(CustomUser, self.request.user)
 
         tasks_in_my_projects = Q(project__members=user)
+        # assigned_to_me = Q(assignee=user, project__isnull=True)
         my_personal_tasks = Q(author=user, project__isnull=True)
 
         return Task.objects.filter(tasks_in_my_projects | my_personal_tasks).distinct()
@@ -136,3 +137,34 @@ class TaskOrderUpdateView(generics.GenericAPIView):
             {"detail": "Task order updated successfully."},
             status=status.HTTP_200_OK,
         )
+
+
+class MyTasksViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    A read-only endpoint that returns tasks relevant to the current user,
+    specifically where they are the author OR an assignee.
+    """
+
+    serializer_class = TaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = TaskPagination
+    filterset_fields = ["status", "project"]  # You can still filter your tasks
+
+    def get_queryset(self) -> QuerySet[Task]:  # type: ignore
+        """
+        Returns tasks where the user is either the author or an assignee.
+        """
+        if not self.request.user.is_authenticated:
+            return Task.objects.none()
+
+        user = cast(CustomUser, self.request.user)
+
+        # Condition 1: The user is the author of the task.
+        is_author = Q(author=user)
+
+        # Condition 2: The user is one of the assignees for the task.
+        # This assumes you have a ManyToManyField named 'assignees' on your Task model.
+        is_assignee = Q(assignee=user)
+
+        # Combine them with an OR and use distinct() to avoid duplicates.
+        return Task.objects.filter(is_author | is_assignee).distinct()

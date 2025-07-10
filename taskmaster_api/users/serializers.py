@@ -65,21 +65,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-    # def to_representation(self, instance):
-    #     # Return the same format as login
-    #     refresh = RefreshToken.for_user(instance)
-    #     return {
-    #         "user": {
-    #             "id": instance.id,
-    #             "username": instance.username,
-    #             "email": instance.email,
-    #         },
-    #         "tokens": {
-    #             "refresh": str(refresh),
-    #             "access": str(refresh.access_token),
-    #         },
-    #     }
-
 
 class EmailLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)

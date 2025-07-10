@@ -1,6 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ProjectViewSet, ProjectMemberRemoveView, ProjectMemberLeave
+from .views import (
+    ProjectViewSet,
+    ProjectMemberRemoveView,
+    ProjectMemberLeave,
+    ProjectMembersList,
+)
 
 router = DefaultRouter()
 router.register(r"projects", ProjectViewSet, basename="project")
@@ -13,8 +18,13 @@ urlpatterns = [
         name="project-member-remove",
     ),
     path(
-        "projects/<int:project_pk>/members/",
+        "projects/<int:project_pk>/leave/",
         ProjectMemberLeave.as_view(),
         name="project-member-leave",
+    ),
+    path(
+        "projects/<int:project_pk>/members/",
+        ProjectMembersList.as_view(),
+        name="project-member-list",
     ),
 ]

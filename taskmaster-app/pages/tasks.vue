@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, watch, onMounted } from "vue";
 import type { Project, Task, TaskPaginatedResponse } from "~/types/types";
 import type { TabsItem } from "@nuxt/ui";
 
@@ -9,6 +10,7 @@ definePageMeta({
 const { $api } = useNuxtApp();
 const { user } = useAuthStore();
 const route = useRoute();
+const router = useRouter();
 
 const currentTab = ref<"ALL" | "TODO" | "IN_PROGRESS" | "DONE">("ALL");
 const page = ref(1);
@@ -54,11 +56,9 @@ const {
 } = useAsyncData<TaskPaginatedResponse>(
   () => `tasks-${currentTab.value}-${page.value}`,
   () => {
-    let url = `/tasks/?author=${user!.id}&page=${page.value}`;
+    let url = `/my-tasks/?page=${page.value}`;
     if (currentTab.value !== "ALL")
-      url = `/tasks/?author=${user!.id}&status=${currentTab.value}&page=${
-        page.value
-      }`;
+      url = `/my-tasks/?status=${currentTab.value}&page=${page.value}`;
     return $api(url);
   },
   {
@@ -74,14 +74,14 @@ function onTaskSaved() {
 
 const items = [
   {
-    label: "Kanban",
-    icon: "i-heroicons-view-columns",
-    slot: "kanban" as const,
-  },
-  {
     label: "List",
     icon: "i-heroicons-list-bullet",
     slot: "list" as const,
+  },
+  {
+    label: "Kanban",
+    icon: "i-heroicons-view-columns",
+    slot: "kanban" as const,
   },
 ] satisfies TabsItem[];
 </script>
@@ -109,7 +109,7 @@ const items = [
       size="xl"
       :ui="{ trigger: 'grow' }"
     >
-      <template #list="{}">
+      <template #list>
         <TaskList
           v-model:current-tab="currentTab"
           v-model:page="page"
@@ -121,13 +121,14 @@ const items = [
         />
       </template>
 
-      <template #kanban="{}">
+      <template #kanban>
         <KanbanView :projects="projects" :project-page="false" />
       </template>
     </UTabs>
 
     <TaskModal
       v-model:is-modal-open="isModalOpen"
+      :project-page="false"
       :projects="projects"
       :project-id="null"
       :editing-task="editingTask"

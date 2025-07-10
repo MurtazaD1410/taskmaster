@@ -33,6 +33,13 @@ class Task(models.Model):
         blank=True,
         help_text="Optional priority level of the task.",
     )
+    assignee = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_tasks",
+    )
     order = models.PositiveIntegerField(default=0, db_index=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tasks")
     project = models.ForeignKey(

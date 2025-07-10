@@ -8,6 +8,7 @@ const priorityOptions = ref([
 ]);
 const props = defineProps<{
   task: Task;
+  projectPage?: boolean;
 }>();
 </script>
 
@@ -32,7 +33,10 @@ const props = defineProps<{
         <!-- Optional fields row -->
         <div class="flex flex-wrap gap-2 items-center text-xs">
           <!-- Project -->
-          <div v-if="task.project_details" class="flex items-center gap-1">
+          <div
+            v-if="task.project_details && !projectPage"
+            class="flex items-center gap-1"
+          >
             <UIcon name="i-heroicons-folder" class="w-3 h-3 text-primary-500" />
             <span
               class="text-primary-500 dark:text-primary-400 font-medium max-w-20 text-ellipsis line-clamp-1"
@@ -82,9 +86,20 @@ const props = defineProps<{
         >
           {{ priorityOptions.find((p) => p.value === task.priority)?.label }}
         </UBadge>
+        <div
+          v-if="task.assignee_details"
+          class="ml-4 flex-shrink-0 flex items-center justify-center"
+        >
+          <UTooltip :text="task.assignee_details.username">
+            <UAvatar
+              :src="task.assignee_details.avatar"
+              :alt="task.assignee_details.username"
+            />
+          </UTooltip>
 
-        <!-- <p class="text-muted text-sm">{{ task.author?.username }}</p> -->
+          <!-- <p class="text-muted text-sm">{{ task.author?.username }}</p> -->
+        </div>
       </div>
-    </div>
-  </UCard>
+    </div></UCard
+  >
 </template>
