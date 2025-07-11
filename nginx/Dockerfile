@@ -1,47 +1,33 @@
-# # --- Stage 1: Build the Vue.js frontend ---
-# # FROM node:20-bookworm AS builder
-# FROM --platform=linux/amd64 node:20-bookworm AS builder
+# --- Stage 1: Build the Vue.js frontend ---
+FROM node:20-alpine AS builder
 
-# # It's still good practice to include build tools.
-# RUN apt-get update && apt-get install -y build-essential python3 && rm -rf /var/lib/apt/lists/*
-# WORKDIR /app
+WORKDIR /app
 
-# # Copy package files and install dependencies
-# COPY ./taskmaster-app/package*.json ./
-# # RUN npm install
-# RUN npm install --ignore-scripts
-# # Copy the rest of the frontend source code
-# COPY ./taskmaster-app/ ./
-# RUN npm run build
+# --- THIS IS THE CORRECTED SECTION ---
+# Use 'apk' (the Alpine package manager) to install build tools.
+# 'build-base' is the Alpine equivalent of 'build-essential'.
+RUN apk add --no-cache python3 build-base
+
+# Copy package files and install dependencies
+COPY ./taskmaster-app/package*.json ./
+RUN npm install
+
+# Copy the rest of the frontend source code
+COPY ./taskmaster-app/ ./
+RUN npm run generate
 
 
-# # --- Stage 2: Create the final Nginx image ---
-# FROM nginx:stable-alpine
-
-# # Copy the built Vue app from the 'builder' stage
-# COPY --from=builder /app/dist /usr/share/nginx/html
-
-# # Copy our custom Nginx configuration
-# COPY ./nginx/nginx.conf /etc/nginx/conf.d/default.conf
-
-# # Expose port 80
-# EXPOSE 80
-
-# # Start Nginx
-# CMD ["nginx", "-g", "daemon off;"]
-
+# --- Stage 2: Create the final Nginx image ---
 FROM nginx:stable-alpine
 
-# Remove the default Nginx welcome page.
-RUN rm /usr/share/nginx/html/*
+# Copy the built Vue app from the 'builder' stage
+# COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/.output/public /usr/share/nginx/html
 
-# Copy the PRE-BUILT assets from your local .output/public directory
-# into the Nginx web root.
-# The path is relative to the `context` defined in your docker-compose file.
-COPY ./taskmaster-app/.output/public /usr/share/nginx/html
-
-# Copy your custom Nginx configuration file.
+# Copy our custom Nginx configuration
 COPY ./nginx/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80 (standard for web servers).
+# Expose port 80
 EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
