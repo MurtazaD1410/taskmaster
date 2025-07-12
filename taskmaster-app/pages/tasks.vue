@@ -6,14 +6,24 @@ import type { TabsItem } from "@nuxt/ui";
 definePageMeta({
   middleware: "auth",
 });
-
+const route = useRoute();
+const router = useRouter();
 const { $api } = useNuxtApp();
-
+const tabView = ref<"list" | "kanban">(
+  (route.query.tab as "list" | "kanban")
+    ? (route.query.tab as "list" | "kanban")
+    : "list"
+);
 const currentTab = ref<"ALL" | "TODO" | "IN_PROGRESS" | "DONE">("ALL");
 const page = ref(1);
 const isModalOpen = ref(false);
 const editingTask = ref<Task | null>(null); // null when creating, holds a task when editing
 const statusCreate = ref<Task["status"] | null>(null);
+
+watch(tabView, (tabView, previous) => {
+  router.push({ query: { ...route.query, tab: tabView } });
+});
+
 function openCreateModal(status: Task["status"] | null) {
   if (status) statusCreate.value = status;
 
@@ -72,11 +82,13 @@ function onTaskSaved() {
 const items = [
   {
     label: "List",
+    value: "list",
     icon: "i-heroicons-list-bullet",
     slot: "list" as const,
   },
   {
     label: "Kanban",
+    value: "kanban",
     icon: "i-heroicons-view-columns",
     slot: "kanban" as const,
   },
@@ -98,8 +110,8 @@ const items = [
         @click="() => openCreateModal(null)"
       />
     </div>
-
     <UTabs
+      v-model="tabView"
       :items="items"
       variant="link"
       class="gap-4 w-full"

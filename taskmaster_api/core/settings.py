@@ -28,8 +28,8 @@ SECRET_KEY = "django-insecure-832&nus!4*j5$li*%#lp#zct9u7z2m_3umfk#w(uq+6-i#k70m
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-# ALLOWED_HOSTS = ["localhost"]
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS = ["localhost:8000", "localhost", "127.0.0.1"]
+# ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 
 
 REST_FRAMEWORK = {

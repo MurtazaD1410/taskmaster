@@ -76,6 +76,11 @@ watch(
   }
 );
 
+const tabView = ref<"list" | "kanban">(
+  (route.query.tab as "list" | "kanban")
+    ? (route.query.tab as "list" | "kanban")
+    : "list"
+);
 const currentTab = ref<"ALL" | "TODO" | "IN_PROGRESS" | "DONE">("ALL");
 const page = ref(1);
 const isModalOpen = ref(false);
@@ -83,6 +88,10 @@ const isProjectModalOpen = ref(false);
 const isInviteMemberModalOpen = ref(false);
 const editingTask = ref<Task | null>(null);
 const editingProject = ref<Project | null>(null);
+
+watch(tabView, (tabView, previous) => {
+  router.push({ query: { ...route.query, tab: tabView } });
+});
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -356,11 +365,13 @@ const tabItems = [
     label: "List",
     icon: "i-heroicons-list-bullet",
     slot: "list" as const,
+    value: "list",
   },
   {
     label: "Kanban",
     icon: "i-heroicons-view-columns",
     slot: "kanban" as const,
+    value: "kanban",
   },
 ] satisfies TabsItem[];
 </script>
@@ -485,6 +496,7 @@ const tabItems = [
         </div>
       </div>
       <UTabs
+        v-model="tabView"
         :items="tabItems"
         variant="link"
         class="gap-4 w-full"

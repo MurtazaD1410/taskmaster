@@ -1,2 +1,4 @@
 /.env.db
 /.env.prod
+/.env.*
+/.env
